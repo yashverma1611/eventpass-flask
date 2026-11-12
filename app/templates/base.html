@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}EventPass — Campus & Tech Event Registration Engine{% endblock %}</title>
+  
+  <!-- Bootstrap 5.3 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  
+  <style>
+    :root {
+      --primary-color: #6366f1;
+      --primary-hover: #4f46e5;
+      --bg-surface: #0f172a;
+    }
+    body {
+      background-color: var(--bg-surface);
+      color: #f1f5f9;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .navbar-brand {
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .card-dark {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      color: #f8fafc;
+    }
+    footer {
+      margin-top: auto;
+      border-top: 1px solid #334155;
+      background-color: #0b1120;
+    }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <!-- Navigation (PUBLIC CHECK-IN SCANNER REMOVED PER USER REQUIREMENT) -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-slate-900 border-bottom border-secondary py-3 shadow-sm">
+    <div class="container">
+      <a class="navbar-brand text-primary fw-bold fs-4 d-flex align-items-center gap-2" href="{{ url_for('events.list_events') }}">
+        <i class="bi bi-ticket-perforated-fill text-primary"></i> Event<span class="text-white">Pass</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navContent">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navContent">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link active" href="{{ url_for('events.list_events') }}"><i class="bi bi-calendar-event me-1"></i> Browse Events</a>
+          </li>
+          {% if current_user.is_authenticated and current_user.role == 'STUDENT' %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('registrations.my_events') }}"><i class="bi bi-ticket-perforated me-1"></i> My Passes</a>
+          </li>
+          {% endif %}
+          {% if current_user.is_authenticated and current_user.is_organizer() %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('events.create_event') }}"><i class="bi bi-plus-circle me-1"></i> Publish Event</a>
+          </li>
+          {% endif %}
+          {% if current_user.is_authenticated and current_user.is_gate_staff() %}
+          <li class="nav-item">
+            <a class="nav-link text-success fw-bold" href="{{ url_for('events.gate_check_in') }}"><i class="bi bi-door-open me-1"></i> Gate Check-in</a>
+          </li>
+          {% endif %}
+          {% if current_user.is_authenticated and current_user.is_admin() %}
+          <li class="nav-item">
+            <a class="nav-link text-warning fw-bold" href="{{ url_for('admin.dashboard') }}"><i class="bi bi-shield-lock me-1"></i> Admin Panel</a>
+          </li>
+          {% endif %}
+        </ul>
+
+        <div class="d-flex align-items-center gap-3">
+          {% if current_user.is_authenticated %}
+            <span class="text-light small">
+              <i class="bi bi-person-circle me-1"></i> {{ current_user.username }} 
+              <span class="badge bg-primary ms-1">{{ current_user.role }}</span>
+            </span>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
+          {% else %}
+            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-sm">Staff / User Login</a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Register</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Flash Message Container -->
+  <div class="container mt-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- Main Body Content -->
+  <main class="container my-4 flex-grow-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="py-4 text-center text-muted small">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-md-6 text-md-start">
+          <strong>EventPass</strong> — Academic Event & Automated Dynamic QR-Verified Pass Platform.
+        </div>
+        <div class="col-md-6 text-md-end mt-2 mt-md-0">
+          Engineered for City College of Management, Lucknow • Session 2026–2027
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Bootstrap 5.3 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

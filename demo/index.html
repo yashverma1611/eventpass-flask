@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventPass | Campus & Tech Event Registration Engine</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- QR Code Generator Lib -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        @keyframes scaleUp { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-scale-up { animation: scaleUp 0.2s ease-out forwards; }
+        
+        /* Printable Ticket Stubs */
+        @media print {
+            body * { visibility: hidden; }
+            #printableTicketModal, #printableTicketModal * { visibility: visible; }
+            #printableTicketModal { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none !important; }
+        }
+        .ticket-stub {
+            background-image: radial-gradient(circle at 0 50%, transparent 12px, white 13px);
+        }
+        .ticket-stub-right {
+            background-image: radial-gradient(circle at 100% 50%, transparent 12px, white 13px);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased flex flex-col selection:bg-violet-600 selection:text-white">
+
+    <!-- Global Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Brand -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchView('events')">
+                <div class="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-violet-500/25">
+                    <i class="fa-solid fa-ticket"></i>
+                </div>
+                <div>
+                    <span class="font-extrabold text-xl tracking-tight text-white">Event<span class="text-violet-400">Pass</span></span>
+                    <span class="hidden sm:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-300 border border-violet-500/20 ml-2">v2.5 Enterprise</span>
+                </div>
+            </div>
+
+            <!-- Public & Portal Navigation (NOTE: Public Check-in Scanner REMOVED per user request) -->
+            <div class="flex items-center space-x-2 sm:space-x-3 text-xs">
+                <button onclick="switchView('events')" id="btnNavEvents" class="px-3.5 py-2 rounded-xl font-bold bg-violet-600 text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-compass"></i>
+                    <span>Explore Events</span>
+                </button>
+                <button onclick="switchView('my-tickets')" id="btnNavTickets" class="px-3.5 py-2 rounded-xl font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-ticket-simple"></i>
+                    <span>My Passes (<span id="navPassCount">1</span>)</span>
+                </button>
+
+                <!-- Gate Employee Check-In Station Button -->
+                <button onclick="openGateStaffPanel()" id="btnNavGate" class="px-3 py-2 rounded-xl font-bold bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-door-open"></i>
+                    <span class="hidden md:inline">Main Gate</span> Check-in
+                </button>
+
+                <!-- Admin Control Panel Button -->
+                <button onclick="openAdminGateway()" id="btnNavAdmin" class="px-3 py-2 rounded-xl font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span class="hidden md:inline">Admin</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Floating Toast Notification System -->
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+        <!-- ================= VIEW 1: EXPLORE EVENTS CATALOG ================= -->
+        <section id="viewEvents" class="space-y-8 animate-scale-up">
+            <!-- Dynamic Hero Banner (100% Free REMOVED per user request; Added dynamic stats & pricing) -->
+            <div class="rounded-3xl bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-900 border border-violet-500/30 p-6 sm:p-10 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="max-w-2xl space-y-3">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-400/30 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-bolt text-amber-400"></i>
+                        <span>Live Campus & Professional Tech Events</span>
+                    </div>
+                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
+                        Discover & Register for Premier Campus Summits
+                    </h1>
+                    <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                        Real-time capacity tracking, dynamic pricing with admin offers, personalized registration forms, and tamper-resistant QR entry passes with verified certificates.
+                    </p>
+                </div>
+
+                <!-- Live Platform Metrics Widget -->
+                <div class="grid grid-cols-2 gap-3 bg-slate-900/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-slate-800 text-center min-w-[240px] shadow-lg">
+                    <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                        <div class="text-xl sm:text-2xl font-black text-violet-400" id="statTotalEvents">3</div>
+                        <div class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-0.5">Live Events</div>
+                    </div>
+                    <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                        <div class="text-xl sm:text-2xl font-black text-emerald-400" id="statAvailableSeats">122</div>
+                        <div class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-0.5">Seats Open</div>
+                    </div>
+                    <div class="col-span-2 p-2.5 bg-violet-900/20 border border-violet-500/20 rounded-xl text-[11px] text-violet-200 font-semibold flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-tag text-amber-400"></i>
+                        <span>Offers Active: Apply coupon codes at checkout</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters Bar (Category, Search) -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-slate-400 text-xs font-bold uppercase mr-1">Filter:</span>
+                    <button onclick="filterCategory('All')" id="btnCatAll" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-violet-600 text-white transition">All Categories</button>
+                    <button onclick="filterCategory('Hackathon')" id="btnCatHackathon" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-800 transition">Hackathons</button>
+                    <button onclick="filterCategory('Workshop')" id="btnCatWorkshop" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-800 transition">Workshops</button>
+                    <button onclick="filterCategory('Seminar')" id="btnCatSeminar" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-800 transition">Seminars</button>
+                </div>
+
+                <div class="relative w-full sm:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input
+                        type="text"
+                        id="eventSearchInput"
+                        placeholder="Search event title or venue..."
+                        oninput="renderEventsCatalog()"
+                        class="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-violet-500 focus:outline-none text-white"
+                    />
+                </div>
+            </div>
+
+            <!-- Events Grid -->
+            <div id="eventsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- ================= VIEW 2: DEDICATED EVENT DETAILED PAGE ================= -->
+        <section id="viewEventDetails" class="hidden max-w-4xl mx-auto space-y-6 animate-scale-up">
+            <!-- Back Button -->
+            <div>
+                <button onclick="switchView('events')" class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back to Explore Events</span>
+                </button>
+            </div>
+
+            <!-- Main Detailed Card -->
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+                <!-- Cover Image & Badges -->
+                <div class="h-64 sm:h-80 overflow-hidden relative">
+                    <img id="detailImage" src="" alt="Event Banner" class="w-full h-full object-cover" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+                    <div class="absolute top-4 left-4 flex flex-wrap gap-2">
+                        <span id="detailCategory" class="px-3 py-1 rounded-full bg-violet-600/90 text-white font-bold text-xs backdrop-blur-md"></span>
+                        <span id="detailOfferBadge" class="px-3 py-1 rounded-full bg-amber-500 text-slate-950 font-black text-xs shadow-md"></span>
+                    </div>
+                    <div class="absolute bottom-4 left-4 right-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                        <div>
+                            <span class="text-xs text-violet-300 font-bold block" id="detailOrganizer"></span>
+                            <h2 class="text-2xl sm:text-3xl font-black text-white" id="detailTitle"></h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Event Details & Real-Time Capacity Grid -->
+                <div class="p-6 sm:p-8 space-y-6">
+                    <!-- Key Metadata Row -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-950/80 border border-slate-800 rounded-2xl text-xs">
+                        <div>
+                            <span class="text-slate-400 block font-semibold">Date & Time</span>
+                            <strong class="text-white text-xs mt-0.5 block" id="detailDate"></strong>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-semibold">Campus Venue</span>
+                            <strong class="text-white text-xs mt-0.5 block" id="detailVenue"></strong>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-semibold">Ticket Price</span>
+                            <div class="mt-0.5 flex items-baseline gap-1.5">
+                                <span class="text-lg font-black text-emerald-400" id="detailFinalPrice">₹299</span>
+                                <span class="text-xs text-slate-500 line-through" id="detailBasePrice">₹499</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-semibold">Seat Status</span>
+                            <strong class="text-xs mt-0.5 block" id="detailSeatPill">Available</strong>
+                        </div>
+                    </div>
+
+                    <!-- REAL TIME SEAT CAPACITY PROGRESS BAR (Requirement 5) -->
+                    <div class="p-5 bg-slate-950 border border-slate-800 rounded-2xl space-y-2">
+                        <div class="flex items-center justify-between text-xs font-bold">
+                            <span class="text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-users text-violet-400"></i>
+                                <span>Real-Time Seat Capacity Tracker</span>
+                            </span>
+                            <span id="detailCapacityText" class="font-mono text-violet-300">118 / 150 Filled (32 Seats Left)</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden p-0.5">
+                            <div id="detailCapacityBar" class="bg-gradient-to-r from-violet-500 to-emerald-400 h-full rounded-full transition-all duration-500" style="width: 78%"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-400 pt-1">
+                            <span>Admission verified at gate via QR scanner</span>
+                            <span id="detailLowSeatWarning" class="text-amber-400 font-bold hidden"><i class="fa-solid fa-fire mr-1"></i>Filling fast! Limited seats remain</span>
+                        </div>
+                    </div>
+
+                    <!-- Description & Itinerary -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="md:col-span-2 space-y-4">
+                            <div>
+                                <h3 class="font-bold text-white text-sm mb-2">Event Overview</h3>
+                                <p class="text-xs text-slate-300 leading-relaxed" id="detailDescription"></p>
+                            </div>
+
+                            <!-- Scheduled Program Timeline -->
+                            <div>
+                                <h3 class="font-bold text-white text-sm mb-2">Summit Itinerary & Schedule</h3>
+                                <div class="space-y-2 text-xs border-l-2 border-violet-500/30 pl-4 py-1" id="detailSchedule">
+                                    <div><strong class="text-violet-400 font-mono">10:00 AM:</strong> Welcome Address & Keynote Speech</div>
+                                    <div><strong class="text-violet-400 font-mono">11:30 AM:</strong> Live Hands-On Technical Lab / Problem Statement Release</div>
+                                    <div><strong class="text-violet-400 font-mono:">01:00 PM:</strong> Networking Lunch & Project Mentoring</div>
+                                    <div><strong class="text-violet-400 font-mono">03:30 PM:</strong> Project Presentations, QR Attendance & Certificate Release</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pricing, Offers & "Get Your Pass" Action Box (Requirement 3) -->
+                        <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex flex-col justify-between space-y-4">
+                            <div class="space-y-3">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full inline-block border border-amber-500/20">
+                                    Admission Pass Tier
+                                </span>
+                                <div>
+                                    <span class="text-xs text-slate-400 block">Total Admission Fee:</span>
+                                    <div class="flex items-baseline gap-2">
+                                        <div class="text-3xl font-black text-white" id="detailPayableDisplay">₹299</div>
+                                        <div class="text-xs text-slate-500 line-through" id="detailOriginalDisplay">₹499</div>
+                                    </div>
+                                    <p class="text-[11px] text-emerald-400 font-semibold mt-1" id="detailOfferText">Early Bird Discount: Save ₹200</p>
+                                </div>
+                                <div class="text-[11px] text-slate-400 space-y-1 pt-2 border-t border-slate-800">
+                                    <div><i class="fa-solid fa-check text-emerald-400 mr-1.5"></i>Confirmed Entry Seat</div>
+                                    <div><i class="fa-solid fa-check text-emerald-400 mr-1.5"></i>Official ReportLab PDF Certificate</div>
+                                    <div><i class="fa-solid fa-check text-emerald-400 mr-1.5"></i>Instant Dynamic QR Code Ticket</div>
+                                </div>
+                            </div>
+
+                            <button
+                                id="btnGetPassAction"
+                                onclick="openRegistrationModal(selectedEventId)"
+                                class="w-full py-3.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-violet-500/25 flex items-center justify-center gap-2"
+                            >
+                                <i class="fa-solid fa-ticket"></i>
+                                <span>Get Your Pass</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= VIEW 3: MY PASSES SECTION (DOWNLOADABLE TICKET PASSES) ================= -->
+        <section id="viewTickets" class="hidden max-w-4xl mx-auto space-y-6 animate-scale-up">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div>
+                    <h2 class="text-2xl font-black text-white">My Registered Event Passes</h2>
+                    <p class="text-xs text-slate-400">Show your dynamic QR pass at the entrance gate for instant gate check-in.</p>
+                </div>
+                <button onclick="switchView('events')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition">
+                    + Book Another Event
+                </button>
+            </div>
+
+            <!-- List of passes -->
+            <div id="ticketsList" class="space-y-6"></div>
+        </section>
+
+        <!-- ================= VIEW 4: MAIN ENTRANCE GATE CHECK-IN PANEL (EMPLOYEES) ================= -->
+        <section id="viewGateStaff" class="hidden max-w-4xl mx-auto space-y-6 animate-scale-up">
+            <!-- Gate Header -->
+            <div class="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 text-white shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider mb-2">
+                        <i class="fa-solid fa-door-open"></i>
+                        <span>Main Entrance Gate #1 • Security & Admission Station</span>
+                    </div>
+                    <h2 class="text-2xl font-black">Gate Employee Check-In Controller</h2>
+                    <p class="text-xs text-slate-300 mt-1">Scan visitor pass code to immediately identify <strong class="text-emerald-300 underline">which event the visitor came for</strong> and admit them.</p>
+                </div>
+                <div class="text-right bg-emerald-900/30 p-3 rounded-2xl border border-emerald-500/20 text-xs">
+                    <span class="text-slate-400 block">Gate Officer:</span>
+                    <strong class="text-white font-mono">Officer R. K. Sharma (Gate 1)</strong>
+                </div>
+            </div>
+
+            <!-- Gate Scanner / Pass Code Input Area -->
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 uppercase mb-2">Scan Visitor QR Pass or Enter Pass Code</label>
+                    <div class="flex gap-2">
+                        <input
+                            type="text"
+                            id="gatePassInput"
+                            placeholder="e.g. EVT-PASS-91A2C4 or scan barcode..."
+                            class="flex-1 px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-sm font-mono font-bold text-emerald-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                            onkeydown="if(event.key==='Enter') executeGateAdmissionCheck()"
+                        />
+                        <button onclick="executeGateAdmissionCheck()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-emerald-500/20 flex items-center gap-2">
+                            <i class="fa-solid fa-barcode"></i>
+                            <span>Verify Pass</span>
+                        </button>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-2">
+                        Try Demo Pass Codes: <strong class="text-emerald-400 font-mono cursor-pointer" onclick="document.getElementById('gatePassInput').value='EVT-PASS-91A2C4'">EVT-PASS-91A2C4</strong> (Sanjogita)
+                    </div>
+                </div>
+
+                <!-- VERIFICATION RESULT DISPLAY (Shows Visitor Details & WHICH EVENT VISITOR CAME FOR) -->
+                <div id="gateVerificationCard" class="hidden p-6 rounded-2xl border space-y-4 animate-scale-up"></div>
+
+                <!-- Live Gate Admission Log -->
+                <div class="border-t border-slate-800 pt-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-white text-xs uppercase tracking-wider">Recent Gate Admissions Log (Today)</h3>
+                        <span class="text-[11px] text-slate-400" id="gateAdmittedCount">Admitted: 1 Attendee</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800 font-bold">
+                                <tr>
+                                    <th class="py-2.5 px-3">Time</th>
+                                    <th class="py-2.5 px-3">Pass Code</th>
+                                    <th class="py-2.5 px-3">Visitor Name</th>
+                                    <th class="py-2.5 px-3">Target Event (Visitor Came For)</th>
+                                    <th class="py-2.5 px-3">Gate Officer</th>
+                                    <th class="py-2.5 px-3 text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gateAdmissionTableBody" class="divide-y divide-slate-800 text-slate-300 font-mono"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= VIEW 5: ADMIN CONTROL PANEL ================= -->
+        <section id="viewAdminPanel" class="hidden max-w-5xl mx-auto space-y-6 animate-scale-up">
+            <!-- Admin Header -->
+            <div class="bg-gradient-to-r from-amber-950 via-slate-900 to-slate-950 border border-amber-500/30 rounded-3xl p-6 sm:p-8 text-white shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider mb-2">
+                        <i class="fa-solid fa-shield"></i>
+                        <span>Super Administrator Control Room</span>
+                    </div>
+                    <h2 class="text-2xl font-black">Event Publishing, Pricing & Offers Controller</h2>
+                    <p class="text-xs text-slate-400 mt-1">Publish new events, issue custom registration form fields, and configure ticket pricing and promo offers.</p>
+                </div>
+                <button onclick="openPublishEventModal()" class="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-lg shadow-amber-500/25 flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle"></i>
+                    <span>+ Publish New Event</span>
+                </button>
+            </div>
+
+            <!-- Admin Events Roster & Pricing Manager -->
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div>
+                        <h3 class="font-bold text-white text-sm">Active Events, Seat Capacities & Pricing Controls</h3>
+                        <p class="text-[11px] text-slate-400">Modify live ticket prices, manage active offers, or review registered attendees</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800 font-bold">
+                            <tr>
+                                <th class="py-3 px-4">Event Details</th>
+                                <th class="py-3 px-4">Category</th>
+                                <th class="py-3 px-4">Capacity & Registrations</th>
+                                <th class="py-3 px-4">Base Price</th>
+                                <th class="py-3 px-4">Active Offer / Promo</th>
+                                <th class="py-3 px-4">Custom Form Fields</th>
+                                <th class="py-3 px-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminEventsTableBody" class="divide-y divide-slate-800 text-slate-300"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- 1. REGISTRATION & PAYMENT MODAL (CUSTOM FORM ISSUED BY ADMIN + PAYMENT AT END) -->
+    <div id="registrationModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-violet-500/30 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 animate-scale-up text-white">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+                <div>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-violet-400 bg-violet-500/10 px-2.5 py-0.5 rounded-full border border-violet-500/20">
+                        Official Pass Registration
+                    </span>
+                    <h3 class="text-lg font-black text-white mt-1" id="regModalEventTitle">Register for Event</h3>
+                </div>
+                <button onclick="closeRegistrationModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Step 1: Attendee Information (Dynamically Rendered from Admin-Issued Form Schema) -->
+            <form onsubmit="handleRegistrationFormSubmit(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="regEventId" />
+
+                <!-- Event Snapshot Banner -->
+                <div class="p-3 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center text-xs">
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">Date & Venue</span>
+                        <span class="font-bold text-white text-xs" id="regModalDateVenue"></span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-slate-400 block text-[10px]">Real-Time Capacity</span>
+                        <span class="text-emerald-400 font-bold font-mono text-xs" id="regModalRemainingSeats"></span>
+                    </div>
+                </div>
+
+                <!-- Container for Admin-Issued Form Fields (Requirement 4) -->
+                <div>
+                    <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-list-check text-violet-400"></i>
+                        <span>Attendee Information (Form Issued by Admin)</span>
+                    </h4>
+                    <div id="dynamicFormFieldsContainer" class="space-y-3"></div>
+                </div>
+
+                <!-- Step 2: Pricing Summary & Promo Offers (Requirement 2 & 3) -->
+                <div class="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                    <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        <i class="fa-solid fa-receipt text-amber-400"></i>
+                        <span>Ticket Pricing & Promo Code</span>
+                    </h4>
+
+                    <div class="flex gap-2">
+                        <input
+                            type="text"
+                            id="regPromoCodeInput"
+                            placeholder="Enter promo coupon code..."
+                            class="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono uppercase focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                        />
+                        <button type="button" onclick="applyPromoCode()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition">
+                            Apply
+                        </button>
+                    </div>
+                    <div id="promoFeedback" class="text-[11px] hidden font-semibold"></div>
+
+                    <!-- Price Calculations -->
+                    <div class="space-y-1 text-xs border-t border-slate-800/80 pt-2 text-slate-300">
+                        <div class="flex justify-between">
+                            <span>Base Ticket Price:</span>
+                            <span class="font-mono" id="regBasePriceText">₹499.00</span>
+                        </div>
+                        <div class="flex justify-between text-emerald-400">
+                            <span>Active Offer / Coupon Discount:</span>
+                            <span class="font-mono" id="regDiscountText">- ₹100.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-black text-white pt-1 border-t border-slate-800">
+                            <span>Total Payable Amount:</span>
+                            <span class="font-mono text-emerald-400 text-base" id="regPayableText">₹399.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Payment Option at End (Requirement 3) -->
+                <div class="p-4 bg-slate-950 rounded-2xl border border-violet-500/20 space-y-3">
+                    <h4 class="font-bold text-slate-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        <i class="fa-solid fa-credit-card text-emerald-400"></i>
+                        <span>Select Payment Method (Settlement at End)</span>
+                    </h4>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <label class="p-3 bg-slate-900 border border-violet-500/40 rounded-xl cursor-pointer flex items-center space-x-2">
+                            <input type="radio" name="paymentOption" value="UPI" checked onchange="togglePaymentMode('UPI')" class="text-violet-600 focus:ring-violet-500" />
+                            <span class="font-bold text-white"><i class="fa-solid fa-qrcode mr-1 text-emerald-400"></i> UPI Instant QR</span>
+                        </label>
+                        <label class="p-3 bg-slate-900 border border-slate-800 rounded-xl cursor-pointer flex items-center space-x-2">
+                            <input type="radio" name="paymentOption" value="CARD" onchange="togglePaymentMode('CARD')" class="text-violet-600 focus:ring-violet-500" />
+                            <span class="font-bold text-white"><i class="fa-regular fa-credit-card mr-1 text-blue-400"></i> Card / NetBanking</span>
+                        </label>
+                    </div>
+
+                    <!-- UPI Dynamic QR Container -->
+                    <div id="paymentUpiBox" class="p-4 bg-slate-900 rounded-xl text-center space-y-2 border border-slate-800">
+                        <span class="text-[10px] text-slate-400 uppercase tracking-wider font-bold block">Dynamic NPCI QR Settlement</span>
+                        <div class="bg-white p-2 rounded-xl inline-block shadow-md">
+                            <canvas id="regModalQrCanvas" class="w-36 h-36 mx-auto"></canvas>
+                        </div>
+                        <div class="text-[11px] text-slate-300">
+                            UPI ID: <strong class="text-emerald-400 font-mono">eventpass@citycollege.edu</strong>
+                        </div>
+                    </div>
+
+                    <!-- Card Simulation Box -->
+                    <div id="paymentCardBox" class="hidden p-4 bg-slate-900 rounded-xl space-y-2 text-xs border border-slate-800">
+                        <input type="text" placeholder="Card Number (4111 •••• •••• 1111)" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono" />
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" placeholder="MM/YY" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono" />
+                            <input type="password" placeholder="CVV" maxlength="3" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex items-center gap-2 pt-2">
+                    <button type="button" onclick="closeRegistrationModal()" class="w-1/3 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="w-2/3 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-lock"></i>
+                        <span id="btnPayAndIssueText">Pay ₹399 & Confirm Pass</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. HIGH RESOLUTION PRINTABLE TICKET PASS MODAL (Requirement 6) -->
+    <div id="printableTicketModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="max-w-2xl w-full animate-scale-up space-y-4">
+            <!-- Modal Actions Bar -->
+            <div class="flex items-center justify-between text-white no-print">
+                <span class="text-xs text-slate-400 font-bold uppercase"><i class="fa-solid fa-print mr-1"></i> Official Event Entry Pass</span>
+                <div class="flex items-center gap-2">
+                    <button onclick="window.print()" class="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i>
+                        <span>Print Pass / Save PDF</span>
+                    </button>
+                    <button onclick="closePrintableTicketModal()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- THE PHYSICAL BOARDING TICKET CARD -->
+            <div class="bg-white text-slate-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-violet-600 flex flex-col md:flex-row relative">
+                <!-- Main Pass Body -->
+                <div class="flex-1 p-6 sm:p-8 space-y-4">
+                    <!-- Pass Top Branding -->
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center font-bold text-sm">
+                                <i class="fa-solid fa-ticket"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-extrabold text-sm tracking-tight text-slate-900">City College of Management</h3>
+                                <p class="text-[10px] text-slate-500 font-semibold uppercase">Official Campus Entry Pass</p>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px] uppercase">
+                            Confirmed Admission
+                        </span>
+                    </div>
+
+                    <!-- Event Title & Date -->
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-violet-600" id="printTicketCategory">TechFest Summit</span>
+                        <h2 class="text-xl font-black text-slate-900 leading-tight mt-0.5" id="printTicketTitle">Annual TechFest 2026: AI & Cyber Frontier</h2>
+                        <div class="mt-2 text-xs text-slate-600 space-y-1">
+                            <div><i class="fa-solid fa-calendar-days text-violet-600 mr-1.5"></i><strong id="printTicketDate">Nov 25, 2026 • 10:00 AM</strong></div>
+                            <div><i class="fa-solid fa-location-dot text-violet-600 mr-1.5"></i><span id="printTicketVenue">Main Auditorium, CCM Campus</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Attendee Details -->
+                    <div class="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Attendee Name</span>
+                            <strong class="text-slate-900 font-black text-sm" id="printTicketAttendee">Sanjogita</strong>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Pass Code</span>
+                            <strong class="text-violet-700 font-mono font-black text-sm" id="printTicketCode">EVT-PASS-91A2C4</strong>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold">College / Org</span>
+                            <span class="text-slate-700 font-medium" id="printTicketCollege">City College of Management</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold">Ticket Tier / Amount</span>
+                            <span class="text-emerald-700 font-bold font-mono" id="printTicketAmount">Paid: ₹299 (UPI)</span>
+                        </div>
+                    </div>
+
+                    <!-- Terms Footnote -->
+                    <p class="text-[9px] text-slate-400 leading-tight">
+                        * Please present this QR pass at the entrance gate. Valid for single-person entry. Non-transferable.
+                    </p>
+                </div>
+
+                <!-- Perforated Tear-off Stub (QR Code & Gate Scan Barcode) -->
+                <div class="md:w-56 bg-slate-900 text-white p-6 flex flex-col items-center justify-between border-t-2 md:border-t-0 md:border-l-2 border-dashed border-slate-300 relative">
+                    <span class="text-[10px] uppercase tracking-widest text-violet-400 font-bold">Entrance Stub</span>
+                    
+                    <div class="bg-white p-2.5 rounded-2xl shadow-inner my-2">
+                        <canvas id="printModalQrCanvas" class="w-36 h-36"></canvas>
+                    </div>
+
+                    <div class="text-center font-mono">
+                        <div class="text-xs font-black text-white tracking-widest" id="printStubCode">EVT-PASS-91A2C4</div>
+                        <div class="text-[9px] text-slate-400 mt-0.5">GATE SCAN VALIDATED</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. PUBLISH NEW EVENT MODAL (ADMIN CONTROL) -->
+    <div id="publishEventModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-amber-500/30 rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-8 animate-scale-up text-white">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+                <div>
+                    <h3 class="text-lg font-black text-white">Publish New Academic Event</h3>
+                    <p class="text-xs text-slate-400">Configure event details, seat capacity, pricing, and required attendee form fields.</p>
+                </div>
+                <button onclick="closePublishEventModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handlePublishEventSubmit(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-400 uppercase mb-1">Event Title *</label>
+                    <input type="text" id="adminNewTitle" required placeholder="e.g. National Cloud & DevOps Symposium 2026" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-bold" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-400 uppercase mb-1">Category</label>
+                        <select id="adminNewCategory" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-semibold">
+                            <option value="Workshop">Workshop</option>
+                            <option value="Hackathon">Hackathon</option>
+                            <option value="Seminar">Seminar</option>
+                            <option value="Cultural">Cultural</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-400 uppercase mb-1">Max Seat Capacity *</label>
+                        <input type="number" id="adminNewCapacity" required value="100" min="10" max="1000" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono font-bold" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-400 uppercase mb-1">Date & Time *</label>
+                        <input type="text" id="adminNewDate" required placeholder="Dec 15, 2026 • 10:00 AM" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-semibold" />
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-400 uppercase mb-1">Campus Venue *</label>
+                        <input type="text" id="adminNewVenue" required placeholder="Seminar Hall 1, Block B" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-semibold" />
+                    </div>
+                </div>
+
+                <!-- PRICING & OFFERS SECTION (Requirement 2) -->
+                <div class="p-3.5 bg-slate-950 border border-amber-500/20 rounded-2xl space-y-3">
+                    <span class="text-amber-400 font-bold text-[11px] block"><i class="fa-solid fa-tags mr-1"></i> Pricing & Offers Control (Admin Authority):</span>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-slate-400 text-[10px] font-bold uppercase mb-1">Base Price (₹)</label>
+                            <input type="number" id="adminNewBasePrice" required value="399" min="0" step="50" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono font-bold" />
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 text-[10px] font-bold uppercase mb-1">Offer Discount (₹)</label>
+                            <input type="number" id="adminNewDiscount" value="100" min="0" step="25" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-emerald-400 font-mono font-bold" />
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 text-[10px] font-bold uppercase mb-1">Promo Code</label>
+                            <input type="text" id="adminNewPromo" value="DEV50" class="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-amber-300 font-mono font-bold uppercase" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INFORMATION FILLING FORM SCHEMA (Requirement 4: Issued by Admin) -->
+                <div class="p-3.5 bg-slate-950 border border-violet-500/20 rounded-2xl space-y-2">
+                    <span class="text-violet-300 font-bold text-[11px] block"><i class="fa-solid fa-list-check mr-1"></i> Issue Registration Form Fields for Attendees:</span>
+                    <p class="text-[10px] text-slate-400 mb-2">Check the information fields attendees must submit during registration:</p>
+
+                    <div class="grid grid-cols-2 gap-2 text-[11px]">
+                        <label class="flex items-center space-x-2 text-slate-300">
+                            <input type="checkbox" id="fieldReqPhone" checked class="text-violet-600 rounded" />
+                            <span>WhatsApp / Mobile Number</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-slate-300">
+                            <input type="checkbox" id="fieldReqCollege" checked class="text-violet-600 rounded" />
+                            <span>College / University Name</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-slate-300">
+                            <input type="checkbox" id="fieldReqRollNo" checked class="text-violet-600 rounded" />
+                            <span>Student Roll / Enrollment No</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-slate-300">
+                            <input type="checkbox" id="fieldReqDept" checked class="text-violet-600 rounded" />
+                            <span>Academic Dept & Semester</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-slate-300">
+                            <input type="checkbox" id="fieldReqTshirt" class="text-violet-600 rounded" />
+                            <span>T-Shirt Size (S/M/L/XL)</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-slate-300">
+                            <input type="checkbox" id="fieldReqDiet" class="text-violet-600 rounded" />
+                            <span>Dietary Preference</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-400 uppercase mb-1">Detailed Description</label>
+                    <textarea id="adminNewDescription" rows="2" placeholder="Describe workshop itinerary, requirements, and mentor keynotes..." class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white"></textarea>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <button type="button" onclick="closePublishEventModal()" class="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="w-1/2 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold transition shadow-lg shadow-amber-500/25">
+                        Publish & Open Tickets
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. ADMIN AUTHENTICATION GATEWAY MODAL -->
+    <div id="adminAuthModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-amber-500/30 rounded-3xl max-w-sm w-full shadow-2xl p-6 sm:p-8 animate-scale-up text-white">
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto text-xl mb-3 shadow-inner">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="text-lg font-black">Admin Access Control</h3>
+                <p class="text-xs text-slate-400 mt-1">Authorized personnel only</p>
+            </div>
+
+            <form onsubmit="handleAdminLoginSubmit(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-400 uppercase mb-1">Admin Username</label>
+                    <input type="text" id="adminUserField" required value="admin" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono" />
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-400 uppercase mb-1">Admin Password</label>
+                    <input type="password" id="adminPassField" required value="admin123" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono" />
+                </div>
+                <div class="flex items-center gap-2 pt-2">
+                    <button type="button" onclick="closeAdminAuthModal()" class="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="w-1/2 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold transition shadow-md shadow-amber-500/25">
+                        Authorize
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer class="border-t border-slate-800 text-slate-500 text-xs py-8 text-center mt-auto">
+        EventPass Platform • Designed by Sanjogita (BCA 3rd Sem) • Flask 3.0 & Dynamic QR Verification
+    </footer>
+
+    <!-- ================= JAVASCRIPT CONTROLLER ================= -->
+    <script>
+        // MASTER STATE: Events Catalog with Pricing, Offers & Form Schemas
+        let EVENTS = [
+            {
+                id: 1,
+                title: "Annual TechFest 2026: AI & Cyber Frontier",
+                organizer: "City College Innovation Club",
+                category: "Hackathon",
+                date: "Nov 25, 2026 • 10:00 AM",
+                venue: "Main Auditorium, CCM Campus",
+                capacity: 150,
+                registered: 118,
+                basePrice: 499,
+                discount: 200,
+                activeOfferTitle: "Early Bird Offer: Save ₹200",
+                promoCode: "TECH200",
+                image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80",
+                description: "Prestigious annual campus innovation hackathon featuring keynotes on generative AI, hands-on competitive tracks in robotics, web3 security, and predictive machine learning models.",
+                // Custom Information Filling Form Schema issued by Admin (Requirement 4)
+                requiredFields: [
+                    { id: "fullName", label: "Attendee Full Name", type: "text", required: true, defaultVal: "Sanjogita" },
+                    { id: "email", label: "Email Address", type: "email", required: true, defaultVal: "sanjogita@example.com" },
+                    { id: "phone", label: "WhatsApp / Contact Mobile", type: "tel", required: true, defaultVal: "9453193268" },
+                    { id: "college", label: "College / University Name", type: "text", required: true, defaultVal: "City College of Management" },
+                    { id: "rollNo", label: "Student Roll / Enrollment No", type: "text", required: true, defaultVal: "2511755060102" },
+                    { id: "department", label: "Department & Current Semester", type: "text", required: true, defaultVal: "BCA Semester 3" },
+                    { id: "tshirt", label: "Official Summit T-Shirt Size", type: "select", options: ["S", "M", "L", "XL", "XXL"], required: false },
+                    { id: "diet", label: "Dietary Preference", type: "select", options: ["Vegetarian", "Non-Vegetarian", "Vegan"], required: false }
+                ]
+            },
+            {
+                id: 2,
+                title: "National Web3 & Cloud Computing Workshop",
+                organizer: "Dept. of Computer Applications",
+                category: "Workshop",
+                date: "Dec 02, 2026 • 02:00 PM",
+                venue: "Lab 3, Academic Block A",
+                capacity: 60,
+                registered: 54,
+                basePrice: 299,
+                discount: 100,
+                activeOfferTitle: "Student Concession: ₹100 OFF",
+                promoCode: "STUDENT100",
+                image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=600&q=80",
+                description: "Hands-on engineering workshop on container orchestration, microservices deployment on Kubernetes, serverless event queues, and smart contract audit procedures.",
+                requiredFields: [
+                    { id: "fullName", label: "Attendee Full Name", type: "text", required: true, defaultVal: "Aarav Sharma" },
+                    { id: "email", label: "Email Address", type: "email", required: true, defaultVal: "aarav.sharma@example.com" },
+                    { id: "phone", label: "WhatsApp / Mobile Number", type: "tel", required: true, defaultVal: "9988776655" },
+                    { id: "college", label: "College / Institute", type: "text", required: true, defaultVal: "City College of Management" },
+                    { id: "rollNo", label: "Roll / Student ID", type: "text", required: true, defaultVal: "2511755060012" }
+                ]
+            },
+            {
+                id: 3,
+                title: "Python Data Science & ML Summit",
+                organizer: "Google Developer Student Club",
+                category: "Seminar",
+                date: "Dec 10, 2026 • 09:00 AM",
+                venue: "Seminar Hall 2, Central Library",
+                capacity: 80,
+                registered: 42,
+                basePrice: 199,
+                discount: 50,
+                activeOfferTitle: "Flash Promo: ₹50 OFF",
+                promoCode: "PYTHON50",
+                image: "https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=600&q=80",
+                description: "Deep dive into real-world predictive ML pipelines, Exploratory Data Analysis with Pandas, automated hyperparameter tuning, and production model serving with FastAPI.",
+                requiredFields: [
+                    { id: "fullName", label: "Attendee Full Name", type: "text", required: true, defaultVal: "Esam Kazmi" },
+                    { id: "email", label: "Email Address", type: "email", required: true, defaultVal: "esam.kazmi@example.com" },
+                    { id: "phone", label: "WhatsApp / Mobile", type: "tel", required: true, defaultVal: "9876543210" },
+                    { id: "college", label: "University Name", type: "text", required: true, defaultVal: "City College of Management" }
+                ]
+            }
+        ];
+
+        // MY TICKETS STORE (User passes)
+        let myTickets = [
+            {
+                id: 1,
+                event: EVENTS[0],
+                ticketCode: "EVT-PASS-91A2C4",
+                userName: "Sanjogita",
+                userEmail: "sanjogita@example.com",
+                userPhone: "9453193268",
+                userCollege: "City College of Management",
+                userRoll: "2511755060102",
+                amountPaid: 299,
+                paymentMode: "UPI_QR",
+                registeredAt: "2026-11-12",
+                checkedIn: false,
+                checkedInAt: null,
+                gateOfficer: null
+            }
+        ];
+
+        // GATE ADMISSIONS LOG (Requirement 7)
+        let gateAdmissionsLog = [];
+
+        let currentActiveCategory = 'All';
+        let selectedEventId = 1;
+        let activeAppliedDiscount = 0;
+
+        // ================= VIEW SWITCHER =================
+        function switchView(viewName) {
+            document.getElementById("viewEvents").classList.add("hidden");
+            document.getElementById("viewEventDetails").classList.add("hidden");
+            document.getElementById("viewTickets").classList.add("hidden");
+            document.getElementById("viewGateStaff").classList.add("hidden");
+            document.getElementById("viewAdminPanel").classList.add("hidden");
+
+            // Reset navbar button styles
+            document.getElementById("btnNavEvents").className = "px-3.5 py-2 rounded-xl font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5";
+            document.getElementById("btnNavTickets").className = "px-3.5 py-2 rounded-xl font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5";
+
+            if (viewName === 'events') {
+                document.getElementById("viewEvents").classList.remove("hidden");
+                document.getElementById("btnNavEvents").className = "px-3.5 py-2 rounded-xl font-bold bg-violet-600 text-white transition flex items-center gap-1.5";
+                renderEventsCatalog();
+            } else if (viewName === 'event-details') {
+                document.getElementById("viewEventDetails").classList.remove("hidden");
+            } else if (viewName === 'my-tickets') {
+                document.getElementById("viewTickets").classList.remove("hidden");
+                document.getElementById("btnNavTickets").className = "px-3.5 py-2 rounded-xl font-bold bg-violet-600 text-white transition flex items-center gap-1.5";
+                renderMyTickets();
+            } else if (viewName === 'gate-staff') {
+                document.getElementById("viewGateStaff").classList.remove("hidden");
+                renderGateAdmissionsTable();
+            } else if (viewName === 'admin') {
+                document.getElementById("viewAdminPanel").classList.remove("hidden");
+                renderAdminEventsTable();
+            }
+        }
+
+        // ================= CATALOG & REAL-TIME CAPACITY (Requirement 2 & 5) =================
+        function renderEventsCatalog() {
+            const grid = document.getElementById("eventsGrid");
+            const query = (document.getElementById("eventSearchInput") ? document.getElementById("eventSearchInput").value.trim().toLowerCase() : "");
+            grid.innerHTML = "";
+
+            let totalOpenSeats = 0;
+
+            const filtered = EVENTS.filter(evt => {
+                const matchesCat = (currentActiveCategory === 'All' || evt.category === currentActiveCategory);
+                const matchesSearch = (!query || evt.title.toLowerCase().includes(query) || evt.venue.toLowerCase().includes(query));
+                return matchesCat && matchesSearch;
+            });
+
+            EVENTS.forEach(e => totalOpenSeats += Math.max(0, e.capacity - e.registered));
+            document.getElementById("statTotalEvents").innerText = EVENTS.length;
+            document.getElementById("statAvailableSeats").innerText = totalOpenSeats;
+
+            filtered.forEach(evt => {
+                const remaining = Math.max(0, evt.capacity - evt.registered);
+                const percent = Math.min(100, Math.round((evt.registered / evt.capacity) * 100));
+                const finalPrice = Math.max(0, evt.basePrice - (evt.discount || 0));
+                const isSoldOut = remaining <= 0;
+                const isUserRegistered = myTickets.some(t => t.event.id === evt.id);
+
+                const card = document.createElement("div");
+                card.className = "bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-violet-500/50 transition-all duration-300 flex flex-col justify-between group shadow-xl";
+                card.innerHTML = `
+                    <div>
+                        <div class="h-44 overflow-hidden relative">
+                            <img src="${evt.image}" alt="${evt.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                            <div class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-bold text-violet-300 border border-slate-800">
+                                ${evt.category}
+                            </div>
+                            <div class="absolute top-3 right-3 bg-amber-500 text-slate-950 font-black text-[10px] px-2.5 py-0.5 rounded-full uppercase shadow">
+                                ${evt.activeOfferTitle || 'Offer Live'}
+                            </div>
+                            <div class="absolute bottom-2 left-3 text-xs text-slate-300 font-semibold">
+                                <i class="fa-solid fa-calendar-day text-violet-400 mr-1"></i> ${evt.date}
+                            </div>
+                        </div>
+
+                        <div class="p-6">
+                            <h3 class="font-bold text-white text-base group-hover:text-violet-400 transition mb-1 leading-snug">${evt.title}</h3>
+                            <p class="text-xs text-slate-400 leading-relaxed mb-3 line-clamp-2">${evt.description}</p>
+                            
+                            <div class="space-y-1 mb-4 text-xs text-slate-300">
+                                <div><i class="fa-solid fa-location-dot text-violet-400 mr-1.5"></i>${evt.venue}</div>
+                            </div>
+
+                            <!-- REAL TIME SEAT CAPACITY TRACKER (Requirement 5) -->
+                            <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 mb-4 space-y-1.5">
+                                <div class="flex justify-between text-[11px] font-bold">
+                                    <span class="text-slate-400">Seat Capacity:</span>
+                                    <span class="${isSoldOut ? 'text-rose-400' : percent > 85 ? 'text-amber-400' : 'text-emerald-400'} font-mono">
+                                        ${isSoldOut ? 'SOLD OUT' : `${remaining} Seats Left (${percent}% Filled)`}
+                                    </span>
+                                </div>
+                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                    <div class="${percent > 85 ? 'bg-amber-400' : 'bg-emerald-500'} h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Pricing Breakdown -->
+                            <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                                <div>
+                                    <span class="text-[10px] text-slate-400 block font-semibold">Ticket Price</span>
+                                    <div class="flex items-baseline gap-1.5">
+                                        <span class="text-lg font-black text-white">₹${finalPrice}</span>
+                                        <span class="text-xs text-slate-500 line-through">₹${evt.basePrice}</span>
+                                    </div>
+                                </div>
+                                <span class="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                    Save ₹${evt.discount || 0}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action: Opens Dedicated Event Details Page (Requirement 3) -->
+                    <div class="p-6 pt-0">
+                        <button
+                            onclick="openEventDetailsPage(${evt.id})"
+                            class="w-full py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 ${
+                                isUserRegistered
+                                    ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-500/20'
+                            }"
+                        >
+                            <i class="fa-solid ${isUserRegistered ? 'fa-check' : 'fa-circle-info'}"></i>
+                            <span>${isUserRegistered ? 'Pass Booked • View Details' : 'View Details & Register'}</span>
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function filterCategory(cat) {
+            currentActiveCategory = cat;
+            ['All', 'Hackathon', 'Workshop', 'Seminar'].forEach(c => {
+                const btn = document.getElementById(`btnCat${c}`);
+                if (btn) {
+                    btn.className = (c === cat)
+                        ? "px-3 py-1.5 rounded-xl text-xs font-bold bg-violet-600 text-white transition"
+                        : "px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-800 transition";
+                }
+            });
+            renderEventsCatalog();
+        }
+
+        // ================= DEDICATED EVENT DETAILS PAGE (Requirement 3 & 5) =================
+        function openEventDetailsPage(eventId) {
+            selectedEventId = eventId;
+            const evt = EVENTS.find(e => e.id === eventId);
+            if (!evt) return;
+
+            const remaining = Math.max(0, evt.capacity - evt.registered);
+            const percent = Math.min(100, Math.round((evt.registered / evt.capacity) * 100));
+            const finalPrice = Math.max(0, evt.basePrice - (evt.discount || 0));
+            const isSoldOut = remaining <= 0;
+            const isRegistered = myTickets.some(t => t.event.id === evt.id);
+
+            document.getElementById("detailImage").src = evt.image;
+            document.getElementById("detailTitle").innerText = evt.title;
+            document.getElementById("detailCategory").innerText = evt.category;
+            document.getElementById("detailOrganizer").innerText = `Organized by ${evt.organizer}`;
+            document.getElementById("detailDate").innerText = evt.date;
+            document.getElementById("detailVenue").innerText = evt.venue;
+            document.getElementById("detailDescription").innerText = evt.description;
+
+            document.getElementById("detailOfferBadge").innerText = evt.activeOfferTitle || 'Exclusive Offer';
+            document.getElementById("detailFinalPrice").innerText = `₹${finalPrice}`;
+            document.getElementById("detailBasePrice").innerText = `₹${evt.basePrice}`;
+            document.getElementById("detailPayableDisplay").innerText = `₹${finalPrice}`;
+            document.getElementById("detailOriginalDisplay").innerText = `₹${evt.basePrice}`;
+            document.getElementById("detailOfferText").innerText = `${evt.activeOfferTitle} • Coupon: ${evt.promoCode}`;
+
+            // Real-Time Capacity display
+            document.getElementById("detailCapacityText").innerText = `${evt.registered} / ${evt.capacity} Filled (${remaining} Seats Remaining)`;
+            document.getElementById("detailCapacityBar").style.width = `${percent}%`;
+            document.getElementById("detailSeatPill").innerHTML = isSoldOut
+                ? '<span class="text-rose-400 font-bold font-mono">SOLD OUT</span>'
+                : `<span class="text-emerald-400 font-bold font-mono">${remaining} Available</span>`;
+
+            const lowWarn = document.getElementById("detailLowSeatWarning");
+            if (remaining < 15 && !isSoldOut) lowWarn.classList.remove("hidden");
+            else lowWarn.classList.add("hidden");
+
+            // Action Button
+            const btn = document.getElementById("btnGetPassAction");
+            if (isRegistered) {
+                btn.className = "w-full py-3.5 bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-2";
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Pass Confirmed • View in My Passes</span>';
+                btn.onclick = () => switchView('my-tickets');
+            } else if (isSoldOut) {
+                btn.className = "w-full py-3.5 bg-slate-800 text-slate-500 cursor-not-allowed rounded-xl text-xs font-bold flex items-center justify-center gap-2";
+                btn.innerHTML = '<i class="fa-solid fa-ban"></i> <span>Sold Out</span>';
+                btn.onclick = null;
+            } else {
+                btn.className = "w-full py-3.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold transition shadow-lg shadow-violet-500/25 flex items-center justify-center gap-2";
+                btn.innerHTML = `<i class="fa-solid fa-ticket"></i> <span>Get Your Pass (₹${finalPrice})</span>`;
+                btn.onclick = () => openRegistrationModal(evt.id);
+            }
+
+            switchView('event-details');
+        }
+
+        // ================= CUSTOM FORM & PAYMENT MODAL (Requirement 3, 4) =================
+        function openRegistrationModal(eventId) {
+            const evt = EVENTS.find(e => e.id === eventId);
+            if (!evt) return;
+
+            document.getElementById("regEventId").value = evt.id;
+            document.getElementById("regModalEventTitle").innerText = evt.title;
+            document.getElementById("regModalDateVenue").innerText = `${evt.date} • ${evt.venue}`;
+            
+            const remaining = Math.max(0, evt.capacity - evt.registered);
+            document.getElementById("regModalRemainingSeats").innerText = `${remaining} Seats Open`;
+
+            // Reset coupon state
+            activeAppliedDiscount = evt.discount || 0;
+            document.getElementById("regPromoCodeInput").value = evt.promoCode || "";
+            document.getElementById("promoFeedback").classList.add("hidden");
+
+            // RENDER CUSTOM FORM FIELDS ISSUED BY ADMIN (Requirement 4)
+            const fieldsContainer = document.getElementById("dynamicFormFieldsContainer");
+            fieldsContainer.innerHTML = "";
+
+            evt.requiredFields.forEach(field => {
+                const wrapper = document.createElement("div");
+                wrapper.className = "space-y-1";
+
+                if (field.type === 'select') {
+                    wrapper.innerHTML = `
+                        <label class="block text-slate-400 text-[11px] font-semibold">${field.label} ${field.required ? '*' : ''}</label>
+                        <select id="field_${field.id}" ${field.required ? 'required' : ''} class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-semibold focus:ring-2 focus:ring-violet-500 focus:outline-none">
+                            ${field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                        </select>
+                    `;
+                } else {
+                    wrapper.innerHTML = `
+                        <label class="block text-slate-400 text-[11px] font-semibold">${field.label} ${field.required ? '*' : ''}</label>
+                        <input
+                            type="${field.type}"
+                            id="field_${field.id}"
+                            value="${field.defaultVal || ''}"
+                            ${field.required ? 'required' : ''}
+                            class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-medium focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                        />
+                    `;
+                }
+                fieldsContainer.appendChild(wrapper);
+            });
+
+            updatePricingCalculations(evt);
+            generateModalUpiQr(evt);
+
+            document.getElementById("registrationModal").classList.remove("hidden");
+        }
+
+        function closeRegistrationModal() {
+            document.getElementById("registrationModal").classList.add("hidden");
+        }
+
+        function updatePricingCalculations(evt) {
+            const base = evt.basePrice;
+            const finalPayable = Math.max(0, base - activeAppliedDiscount);
+
+            document.getElementById("regBasePriceText").innerText = `₹${base.toFixed(2)}`;
+            document.getElementById("regDiscountText").innerText = `- ₹${activeAppliedDiscount.toFixed(2)}`;
+            document.getElementById("regPayableText").innerText = `₹${finalPayable.toFixed(2)}`;
+            document.getElementById("btnPayAndIssueText").innerText = `Pay ₹${finalPayable} & Confirm Pass`;
+        }
+
+        function applyPromoCode() {
+            const evtId = parseInt(document.getElementById("regEventId").value);
+            const evt = EVENTS.find(e => e.id === evtId);
+            const code = document.getElementById("regPromoCodeInput").value.trim().toUpperCase();
+            const feedback = document.getElementById("promoFeedback");
+            feedback.classList.remove("hidden");
+
+            if (code === (evt.promoCode || '').toUpperCase()) {
+                activeAppliedDiscount = evt.discount;
+                feedback.className = "text-[11px] text-emerald-400 font-semibold";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> Coupon '${code}' applied! ₹${activeAppliedDiscount} discount added.`;
+            } else if (code === "CCM50") {
+                activeAppliedDiscount = 50;
+                feedback.className = "text-[11px] text-emerald-400 font-semibold";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> Student voucher applied! Flat ₹50 off.`;
+            } else {
+                feedback.className = "text-[11px] text-rose-400 font-semibold";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1"></i> Invalid or expired promo code.`;
+            }
+            updatePricingCalculations(evt);
+            generateModalUpiQr(evt);
+        }
+
+        function togglePaymentMode(mode) {
+            if (mode === 'UPI') {
+                document.getElementById("paymentUpiBox").classList.remove("hidden");
+                document.getElementById("paymentCardBox").classList.add("hidden");
+            } else {
+                document.getElementById("paymentUpiBox").classList.add("hidden");
+                document.getElementById("paymentCardBox").classList.remove("hidden");
+            }
+        }
+
+        function generateModalUpiQr(evt) {
+            const finalPayable = Math.max(0, evt.basePrice - activeAppliedDiscount);
+            const canvas = document.getElementById("regModalQrCanvas");
+            const upiPayload = `upi://pay?pa=eventpass@citycollege.edu&pn=City+College+Events&am=${finalPayable}&cu=INR&tn=EVENTPASS_${evt.id}`;
+            if (canvas && window.QRCode) {
+                QRCode.toCanvas(canvas, upiPayload, { width: 140, margin: 1 });
+            }
+        }
+
+        // ================= SUBMIT REGISTRATION & ISSUE PASS =================
+        function handleRegistrationFormSubmit(e) {
+            e.preventDefault();
+            const evtId = parseInt(document.getElementById("regEventId").value);
+            const evt = EVENTS.find(e => e.id === evtId);
+            if (!evt) return;
+
+            // Collect custom field values
+            const fullName = document.getElementById("field_fullName") ? document.getElementById("field_fullName").value : "Student Attendee";
+            const email = document.getElementById("field_email") ? document.getElementById("field_email").value : "student@example.com";
+            const phone = document.getElementById("field_phone") ? document.getElementById("field_phone").value : "9876543210";
+            const college = document.getElementById("field_college") ? document.getElementById("field_college").value : "City College of Management";
+            const rollNo = document.getElementById("field_rollNo") ? document.getElementById("field_rollNo").value : "ROLL-" + Math.floor(Math.random()*10000);
+
+            const finalPrice = Math.max(0, evt.basePrice - activeAppliedDiscount);
+            const ticketCode = "EVT-PASS-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+            // REAL-TIME CAPACITY UPDATE (Requirement 5)
+            evt.registered += 1;
+
+            const newTicket = {
+                id: myTickets.length + 1,
+                event: evt,
+                ticketCode: ticketCode,
+                userName: fullName,
+                userEmail: email,
+                userPhone: phone,
+                userCollege: college,
+                userRoll: rollNo,
+                amountPaid: finalPrice,
+                paymentMode: "UPI_QR",
+                registeredAt: new Date().toISOString().split('T')[0],
+                checkedIn: false,
+                checkedInAt: null,
+                gateOfficer: null
+            };
+
+            myTickets.unshift(newTicket);
+            document.getElementById("navPassCount").innerText = myTickets.length;
+
+            closeRegistrationModal();
+            showToast(`Pass confirmed for '${evt.title}'! Ticket Code: ${ticketCode}`, 'success');
+
+            renderEventsCatalog();
+            switchView('my-tickets');
+        }
+
+        // ================= MY PASSES & DOWNLOAD TICKET (Requirement 6) =================
+        function renderMyTickets() {
+            const list = document.getElementById("ticketsList");
+            list.innerHTML = "";
+            document.getElementById("navPassCount").innerText = myTickets.length;
+
+            if (myTickets.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-12 bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-3">
+                        <i class="fa-solid fa-ticket-simple text-4xl text-slate-600"></i>
+                        <h3 class="text-lg font-bold text-white">No Event Passes Found</h3>
+                        <p class="text-xs text-slate-400">Explore active campus summits and register to generate your pass.</p>
+                        <button onclick="switchView('events')" class="px-4 py-2 bg-violet-600 text-white rounded-xl text-xs font-bold">Explore Events</button>
+                    </div>
+                `;
+                return;
+            }
+
+            myTickets.forEach(t => {
+                const div = document.createElement("div");
+                div.className = "bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col md:flex-row items-center gap-6";
+                div.innerHTML = `
+                    <div class="bg-white p-3 rounded-2xl flex flex-col items-center shadow-lg">
+                        <canvas id="user_qr_${t.id}" class="w-36 h-36"></canvas>
+                        <span class="text-[10px] font-mono text-slate-900 font-bold mt-1 tracking-wider">${t.ticketCode}</span>
+                    </div>
+
+                    <div class="flex-1 text-center md:text-left space-y-2">
+                        <div class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            t.checkedIn ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                        } uppercase tracking-wider">
+                            ${t.checkedIn ? 'Admitted & Gate Checked-In' : 'Confirmed Booking • Ready for Gate'}
+                        </div>
+
+                        <h3 class="text-xl font-black text-white">${t.event.title}</h3>
+                        <p class="text-xs text-slate-400"><i class="fa-solid fa-location-dot text-violet-400 mr-1"></i>${t.event.venue} • <i class="fa-regular fa-clock text-violet-400 mr-1"></i>${t.event.date}</p>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-2 border-t border-slate-800/80">
+                            <div>Attendee: <strong class="text-white">${t.userName}</strong></div>
+                            <div>College: <span class="text-slate-400">${t.userCollege}</span></div>
+                            <div>Amount Settled: <strong class="text-emerald-400 font-mono">₹${t.amountPaid}</strong> (${t.paymentMode})</div>
+                            <div>Roll No: <span class="font-mono text-slate-400">${t.userRoll}</span></div>
+                        </div>
+
+                        <!-- ACTIONS: PRINTABLE TICKET PASS (Requirement 6) -->
+                        <div class="pt-3 flex flex-wrap items-center gap-2">
+                            <button onclick="openPrintableTicketModal(${t.id})" class="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold rounded-xl transition shadow-md shadow-violet-500/20 flex items-center gap-1.5">
+                                <i class="fa-solid fa-download"></i>
+                                <span>Download / Print Ticket Pass</span>
+                            </button>
+                            <button onclick="copyTicketCode('${t.ticketCode}')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition">
+                                <i class="fa-regular fa-copy mr-1"></i> Copy Code
+                            </button>
+                            <button onclick="downloadReportLabCert('${t.userName}', '${t.event.title}')" class="px-3.5 py-2 bg-emerald-950 text-emerald-300 border border-emerald-500/30 text-xs font-bold rounded-xl transition flex items-center gap-1">
+                                <i class="fa-solid fa-award"></i>
+                                <span>ReportLab Certificate</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+
+                setTimeout(() => {
+                    const canvas = document.getElementById(`user_qr_${t.id}`);
+                    if (canvas && window.QRCode) {
+                        QRCode.toCanvas(canvas, `EVENTPASS:${t.ticketCode}:${t.userName}:${t.event.id}`, { width: 140, margin: 1 });
+                    }
+                }, 50);
+            });
+        }
+
+        function copyTicketCode(code) {
+            navigator.clipboard.writeText(code);
+            showToast(`Ticket Code '${code}' copied! Ready for Gate verification.`, 'info');
+        }
+
+        function downloadReportLabCert(name, eventTitle) {
+            showToast(`Generating ReportLab PDF Certificate for '${name}'...`, 'info');
+            setTimeout(() => {
+                alert(`Official Certificate of Participation\nIssued to: ${name}\nFor: ${eventTitle}\nAuthorized by City College of Management, Lucknow (Subject Code: NBCA 308P).`);
+            }, 600);
+        }
+
+        // ================= OPEN PRINTABLE TICKET MODAL (Requirement 6) =================
+        function openPrintableTicketModal(ticketId) {
+            const ticket = myTickets.find(t => t.id === ticketId);
+            if (!ticket) return;
+
+            document.getElementById("printTicketTitle").innerText = ticket.event.title;
+            document.getElementById("printTicketCategory").innerText = ticket.event.category;
+            document.getElementById("printTicketDate").innerText = ticket.event.date;
+            document.getElementById("printTicketVenue").innerText = ticket.event.venue;
+            document.getElementById("printTicketAttendee").innerText = ticket.userName;
+            document.getElementById("printTicketCode").innerText = ticket.ticketCode;
+            document.getElementById("printTicketCollege").innerText = ticket.userCollege;
+            document.getElementById("printTicketAmount").innerText = `Paid: ₹${ticket.amountPaid} (${ticket.paymentMode})`;
+            document.getElementById("printStubCode").innerText = ticket.ticketCode;
+
+            // Render high-res stub QR
+            const canvas = document.getElementById("printModalQrCanvas");
+            if (canvas && window.QRCode) {
+                QRCode.toCanvas(canvas, `EVENTPASS:${ticket.ticketCode}:${ticket.userName}:${ticket.event.id}`, { width: 140, margin: 1 });
+            }
+
+            document.getElementById("printableTicketModal").classList.remove("hidden");
+        }
+
+        function closePrintableTicketModal() {
+            document.getElementById("printableTicketModal").classList.add("hidden");
+        }
+
+        // ================= GATE EMPLOYEE CHECK-IN PANEL (Requirement 7) =================
+        function openGateStaffPanel() {
+            switchView('gate-staff');
+        }
+
+        function executeGateAdmissionCheck() {
+            const input = document.getElementById("gatePassInput").value.trim().toUpperCase();
+            const card = document.getElementById("gateVerificationCard");
+            card.classList.remove("hidden");
+
+            if (!input) {
+                showToast("Please enter or scan a pass code", "warning");
+                return;
+            }
+
+            const ticket = myTickets.find(t => t.ticketCode.toUpperCase() === input);
+
+            if (!ticket) {
+                // INVALID PASS
+                card.className = "p-6 rounded-2xl border bg-rose-950/40 border-rose-500/40 text-rose-200 text-xs space-y-2 animate-scale-up";
+                card.innerHTML = `
+                    <div class="flex items-center gap-2 text-rose-400 font-black text-sm">
+                        <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                        <span>ADMISSION DENIED: INVALID PASS CODE</span>
+                    </div>
+                    <p class="text-slate-300">The pass code <strong class="font-mono text-white">'${input}'</strong> is not recognized in the university registry. Entry denied.</p>
+                `;
+                return;
+            }
+
+            // CHECK IF ALREADY ADMITTED (DUPLICATE PASS PREVENTION)
+            if (ticket.checkedIn) {
+                card.className = "p-6 rounded-2xl border bg-amber-950/40 border-amber-500/40 text-amber-200 text-xs space-y-3 animate-scale-up";
+                card.innerHTML = `
+                    <div class="flex items-center gap-2 text-amber-400 font-black text-sm">
+                        <i class="fa-solid fa-circle-exclamation text-lg"></i>
+                        <span>WARNING: VISITOR ALREADY CHECKED-IN (POTENTIAL TICKET REUSE)</span>
+                    </div>
+
+                    <!-- SHOWS EXACTLY WHICH EVENT THE VISITOR CAME FOR (Requirement 7) -->
+                    <div class="p-4 bg-slate-950/80 rounded-xl border border-amber-500/30 space-y-2">
+                        <span class="text-amber-400 font-bold block text-[10px] uppercase tracking-wider">Target Event (Visitor Came For):</span>
+                        <h4 class="text-white font-black text-base">${ticket.event.title}</h4>
+                        <div class="text-slate-300 text-xs">
+                            <i class="fa-solid fa-location-dot text-amber-400 mr-1"></i> ${ticket.event.venue} • ${ticket.event.date}
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-slate-300">
+                        <div>Visitor: <strong class="text-white">${ticket.userName}</strong></div>
+                        <div>College: <strong class="text-white">${ticket.userCollege}</strong></div>
+                        <div>Previous Check-in Time: <strong class="text-amber-400 font-mono">${ticket.checkedInAt}</strong></div>
+                        <div>Admitted By: <strong class="text-amber-400">${ticket.gateOfficer}</strong></div>
+                    </div>
+                `;
+                return;
+            }
+
+            // SUCCESSFUL FIRST TIME CHECK-IN: MARK ADMITTED
+            ticket.checkedIn = true;
+            ticket.checkedInAt = new Date().toLocaleTimeString();
+            ticket.gateOfficer = "Officer R. K. Sharma (Gate 1)";
+
+            // Add to admissions log
+            gateAdmissionsLog.unshift({
+                time: ticket.checkedInAt,
+                code: ticket.ticketCode,
+                name: ticket.userName,
+                eventTitle: ticket.event.title,
+                gateOfficer: ticket.gateOfficer,
+                status: "ADMITTED"
+            });
+
+            card.className = "p-6 rounded-2xl border bg-emerald-950/40 border-emerald-500/40 text-emerald-200 text-xs space-y-3 animate-scale-up";
+            card.innerHTML = `
+                <div class="flex items-center justify-between border-b border-emerald-500/30 pb-2">
+                    <div class="flex items-center gap-2 text-emerald-400 font-black text-sm">
+                        <i class="fa-solid fa-circle-check text-lg"></i>
+                        <span>ADMISSION GRANTED • VALID PASS VERIFIED</span>
+                    </div>
+                    <span class="font-mono text-emerald-300 text-xs font-bold">${ticket.checkedInAt}</span>
+                </div>
+
+                <!-- SHOWS EXACTLY WHICH EVENT THE VISITOR CAME FOR (Requirement 7) -->
+                <div class="p-4 bg-slate-950 rounded-xl border border-emerald-500/30 space-y-2">
+                    <span class="text-emerald-400 font-bold block text-[10px] uppercase tracking-wider">Target Event (Visitor Came For):</span>
+                    <h4 class="text-white font-black text-base">${ticket.event.title}</h4>
+                    <div class="text-slate-300 text-xs">
+                        <i class="fa-solid fa-location-dot text-emerald-400 mr-1"></i> ${ticket.event.venue} • ${ticket.event.date}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-slate-300">
+                    <div>Visitor Full Name: <strong class="text-white font-black">${ticket.userName}</strong></div>
+                    <div>College / University: <strong class="text-white">${ticket.userCollege}</strong></div>
+                    <div>Student Roll No: <span class="font-mono text-white">${ticket.userRoll}</span></div>
+                    <div>Contact Phone: <span class="font-mono text-white">${ticket.userPhone}</span></div>
+                </div>
+
+                <div class="p-2 bg-emerald-900/40 rounded-lg text-emerald-300 text-[11px] font-semibold text-center">
+                    Gate Officer: Officer R. K. Sharma (Gate 1) • Verified Single Entry
+                </div>
+            `;
+
+            showToast(`Visitor '${ticket.userName}' admitted for '${ticket.event.title}'`, 'success');
+            renderGateAdmissionsTable();
+            renderMyTickets();
+        }
+
+        function renderGateAdmissionsTable() {
+            const tbody = document.getElementById("gateAdmissionTableBody");
+            tbody.innerHTML = "";
+            document.getElementById("gateAdmittedCount").innerText = `Admitted: ${gateAdmissionsLog.length} Attendee(s)`;
+
+            if (gateAdmissionsLog.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-500">No visitors scanned yet at this gate. Enter pass code above.</td></tr>`;
+                return;
+            }
+
+            gateAdmissionsLog.forEach(log => {
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-slate-950/60";
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 text-slate-400">${log.time}</td>
+                    <td class="py-2.5 px-3 font-bold text-emerald-400">${log.code}</td>
+                    <td class="py-2.5 px-3 font-semibold text-white">${log.name}</td>
+                    <td class="py-2.5 px-3 text-slate-300 font-sans font-bold">${log.eventTitle}</td>
+                    <td class="py-2.5 px-3 text-slate-400">${log.gateOfficer}</td>
+                    <td class="py-2.5 px-3 text-right">
+                        <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">VERIFIED</span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ================= ADMIN PANEL & PRICING CONTROL (Requirement 1, 2, 4) =================
+        function openAdminGateway() {
+            document.getElementById("adminAuthModal").classList.remove("hidden");
+        }
+
+        function closeAdminAuthModal() {
+            document.getElementById("adminAuthModal").classList.add("hidden");
+        }
+
+        function handleAdminLoginSubmit(e) {
+            e.preventDefault();
+            const u = document.getElementById("adminUserField").value.trim();
+            const p = document.getElementById("adminPassField").value.trim();
+
+            if (u === 'admin' && p === 'admin123') {
+                closeAdminAuthModal();
+                showToast("Admin Session Authorized!", "success");
+                switchView('admin');
+            } else {
+                showToast("Invalid Admin credentials. (Use admin / admin123)", "error");
+            }
+        }
+
+        function renderAdminEventsTable() {
+            const tbody = document.getElementById("adminEventsTableBody");
+            tbody.innerHTML = "";
+
+            EVENTS.forEach(evt => {
+                const remaining = Math.max(0, evt.capacity - evt.registered);
+                const finalPrice = Math.max(0, evt.basePrice - (evt.discount || 0));
+
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-slate-950/60";
+                tr.innerHTML = `
+                    <td class="py-3 px-4">
+                        <strong class="text-white block font-sans">${evt.title}</strong>
+                        <span class="text-[11px] text-slate-400">${evt.venue} • ${evt.date}</span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-0.5 rounded bg-violet-500/20 text-violet-300 text-[10px] font-bold">${evt.category}</span>
+                    </td>
+                    <td class="py-3 px-4 font-mono">
+                        <strong class="text-emerald-400">${evt.registered}</strong> / ${evt.capacity}
+                        <span class="text-slate-400 text-[10px]">(${remaining} left)</span>
+                    </td>
+                    <td class="py-3 px-4 font-mono font-bold text-white">
+                        ₹${evt.basePrice}
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="text-emerald-400 font-bold block text-xs">₹${finalPrice} (Save ₹${evt.discount})</span>
+                        <span class="text-[10px] text-amber-400 font-mono font-bold">Code: ${evt.promoCode}</span>
+                    </td>
+                    <td class="py-3 px-4 text-[11px] text-slate-400">
+                        ${evt.requiredFields.length} Custom Fields
+                    </td>
+                    <td class="py-3 px-4 text-right space-x-1">
+                        <button onclick="editEventPricingPrompt(${evt.id})" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-bold transition">
+                            Edit Pricing & Offers
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function editEventPricingPrompt(eventId) {
+            const evt = EVENTS.find(e => e.id === eventId);
+            if (!evt) return;
+
+            const newPriceStr = prompt(`Set Base Ticket Price (₹) for '${evt.title}':`, evt.basePrice);
+            if (newPriceStr === null) return;
+            const newPrice = parseFloat(newPriceStr) || 0;
+
+            const newDiscountStr = prompt(`Set Offer Discount Amount (₹):`, evt.discount || 0);
+            if (newDiscountStr === null) return;
+            const newDiscount = parseFloat(newDiscountStr) || 0;
+
+            const newPromo = prompt(`Set Active Promo Code:`, evt.promoCode || "PROMO20");
+            if (newPromo === null) return;
+
+            evt.basePrice = newPrice;
+            evt.discount = newDiscount;
+            evt.promoCode = newPromo.toUpperCase();
+            evt.activeOfferTitle = `Admin Special: ₹${newDiscount} OFF with code ${evt.promoCode}`;
+
+            showToast(`Pricing updated for '${evt.title}'!`, 'success');
+            renderAdminEventsTable();
+            renderEventsCatalog();
+        }
+
+        function openPublishEventModal() {
+            document.getElementById("publishEventModal").classList.remove("hidden");
+        }
+
+        function closePublishEventModal() {
+            document.getElementById("publishEventModal").classList.add("hidden");
+        }
+
+        function handlePublishEventSubmit(e) {
+            e.preventDefault();
+
+            const title = document.getElementById("adminNewTitle").value.trim();
+            const category = document.getElementById("adminNewCategory").value;
+            const capacity = parseInt(document.getElementById("adminNewCapacity").value) || 100;
+            const date = document.getElementById("adminNewDate").value.trim();
+            const venue = document.getElementById("adminNewVenue").value.trim();
+            const basePrice = parseFloat(document.getElementById("adminNewBasePrice").value) || 0;
+            const discount = parseFloat(document.getElementById("adminNewDiscount").value) || 0;
+            const promo = document.getElementById("adminNewPromo").value.trim().toUpperCase() || "NEW2026";
+            const desc = document.getElementById("adminNewDescription").value.trim() || "Campus academic summit and competition organized by City College of Management.";
+
+            // ASSEMBLE ADMIN-ISSUED REGISTRATION FORM SCHEMA (Requirement 4)
+            const requiredFields = [
+                { id: "fullName", label: "Attendee Full Name", type: "text", required: true, defaultVal: "" },
+                { id: "email", label: "Email Address", type: "email", required: true, defaultVal: "" }
+            ];
+
+            if (document.getElementById("fieldReqPhone").checked) {
+                requiredFields.push({ id: "phone", label: "WhatsApp / Contact Mobile", type: "tel", required: true, defaultVal: "" });
+            }
+            if (document.getElementById("fieldReqCollege").checked) {
+                requiredFields.push({ id: "college", label: "College / University Name", type: "text", required: true, defaultVal: "City College of Management" });
+            }
+            if (document.getElementById("fieldReqRollNo").checked) {
+                requiredFields.push({ id: "rollNo", label: "Student Roll / Enrollment No", type: "text", required: true, defaultVal: "" });
+            }
+            if (document.getElementById("fieldReqDept").checked) {
+                requiredFields.push({ id: "department", label: "Academic Dept & Semester", type: "text", required: true, defaultVal: "BCA Semester 3" });
+            }
+            if (document.getElementById("fieldReqTshirt").checked) {
+                requiredFields.push({ id: "tshirt", label: "Official Summit T-Shirt Size", type: "select", options: ["S", "M", "L", "XL", "XXL"], required: false });
+            }
+            if (document.getElementById("fieldReqDiet").checked) {
+                requiredFields.push({ id: "diet", label: "Dietary Preference", type: "select", options: ["Vegetarian", "Non-Vegetarian", "Vegan"], required: false });
+            }
+
+            const newEvent = {
+                id: EVENTS.length + 1,
+                title: title,
+                organizer: "City College Event Board",
+                category: category,
+                date: date,
+                venue: venue,
+                capacity: capacity,
+                registered: 0,
+                basePrice: basePrice,
+                discount: discount,
+                activeOfferTitle: `Launch Offer: Save ₹${discount}`,
+                promoCode: promo,
+                image: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=600&q=80",
+                description: desc,
+                requiredFields: requiredFields
+            };
+
+            EVENTS.unshift(newEvent);
+            closePublishEventModal();
+            showToast(`Event '${title}' successfully published with ${requiredFields.length} custom form fields!`, 'success');
+
+            renderAdminEventsTable();
+            renderEventsCatalog();
+        }
+
+        // ================= TOAST NOTIFICATION HELPER =================
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById("toastContainer");
+            const toast = document.createElement("div");
+
+            let borderCol = "border-violet-500/40 text-violet-300";
+            let icon = "fa-info-circle";
+            if (type === 'success') { borderCol = "border-emerald-500/50 text-emerald-300"; icon = "fa-check-circle"; }
+            if (type === 'warning') { borderCol = "border-amber-500/50 text-amber-300"; icon = "fa-triangle-exclamation"; }
+            if (type === 'error') { borderCol = "border-rose-500/50 text-rose-300"; icon = "fa-circle-xmark"; }
+
+            toast.className = `p-4 bg-slate-900/95 backdrop-blur-md border ${borderCol} rounded-2xl shadow-2xl flex items-center gap-3 text-xs pointer-events-auto transition-all duration-300 animate-scale-up max-w-sm`;
+            toast.innerHTML = `
+                <i class="fa-solid ${icon} text-base"></i>
+                <span class="flex-1 font-semibold">${msg}</span>
+            `;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // INITIALIZE SYSTEM
+        renderEventsCatalog();
+        renderMyTickets();
+    </script>
+</body>
+</html>

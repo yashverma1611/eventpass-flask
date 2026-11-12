@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Verification Failed — EventPass{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center pt-5">
+  <div class="col-lg-6 text-center">
+    <div class="card border-0 shadow-sm rounded-4 p-5 bg-white">
+      <i class="bi bi-x-octagon-fill text-danger display-2 mb-3"></i>
+      <h3 class="fw-bold text-dark">Certificate Verification Failed</h3>
+      <p class="text-muted mt-2">
+        The Certificate Serial Number <code class="text-danger fw-bold">{{ cert_id }}</code> was not found in the City College of Management official database.
+      </p>
+      <div class="alert alert-warning py-3 px-4 small text-start mt-3 mb-4">
+        <strong>Warning:</strong> This document may be fraudulent, corrupted, or has not been legitimately issued by an approved event coordinator.
+      </div>
+      <div>
+        <a href="{{ url_for('events.list_events') }}" class="btn btn-outline-primary">Return to EventPass Home</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

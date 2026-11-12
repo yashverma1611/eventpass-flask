@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Events Catalog — EventPass{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="p-5 mb-4 bg-primary text-white rounded-4 shadow-sm position-relative overflow-hidden">
+  <div class="row align-items-center">
+    <div class="col-lg-8">
+      <span class="badge bg-white text-primary mb-2 px-3 py-2 fw-bold text-uppercase tracking-wider">City College of Management</span>
+      <h1 class="display-5 fw-bold">Academic Events & Hackathons</h1>
+      <p class="lead mb-4 text-white-50">Discover inter-college technical symposiums, coding hackathons, and certified workshops. Register with one click and earn auto-generated, QR-verified certificates.</p>
+    </div>
+    <div class="col-lg-4 text-center d-none d-lg-block">
+      <i class="bi bi-award-fill text-white opacity-25 display-1" style="font-size: 8rem;"></i>
+    </div>
+  </div>
+</div>
+
+<!-- Search & Category Filters -->
+<div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+  <form method="GET" action="{{ url_for('events.list_events') }}" class="row g-2 align-items-center">
+    <div class="col-md-7">
+      <div class="input-group">
+        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+        <input type="text" name="search" class="form-control border-start-0 ps-0" placeholder="Search events by title or keyword..." value="{{ search }}" />
+      </div>
+    </div>
+    <div class="col-md-3">
+      <select name="category" class="form-select" onchange="this.form.submit()">
+        {% for cat in categories %}
+          <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100 fw-bold">Filter</button>
+    </div>
+  </form>
+</div>
+
+<!-- Events Grid -->
+<div class="row g-4">
+  {% if events %}
+    {% for ev in events %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 card-event bg-white rounded-4 overflow-hidden d-flex flex-col justify-between">
+          <div class="p-4 flex-grow-1">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="badge bg-light text-primary border border-primary-subtle px-2.5 py-1.5 fw-bold">{{ ev.category }}</span>
+              <span class="text-muted small"><i class="bi bi-geo-alt-fill text-danger me-1"></i> {{ ev.venue }}</span>
+            </div>
+
+            <h5 class="fw-bold text-dark mt-2 mb-2">{{ ev.title }}</h5>
+            <p class="text-muted small mb-3">{{ ev.description[:110] }}{% if ev.description|length > 110 %}...{% endif %}</p>
+
+            <div class="small text-secondary mb-3">
+              <i class="bi bi-calendar3 me-1 text-primary"></i> {{ ev.date.strftime('%d %B %Y at %I:%M %p') }}
+            </div>
+
+            <!-- Dynamic Capacity Indicator -->
+            <div class="mt-3">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>Seats Filled</span>
+                <span>{{ ev.confirmed_count }} / {{ ev.capacity }}</span>
+              </div>
+              {% set pct = ev.capacity_percentage %}
+              <div class="progress" style="height: 8px;">
+                <div class="progress-bar {% if pct > 85 %}badge-capacity-red{% elif pct > 65 %}badge-capacity-amber{% else %}badge-capacity-green{% endif %}" 
+                     role="progressbar" style="width: {{ pct }}%;" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+              </div>
+              <div class="text-end mt-1">
+                <span class="badge {% if ev.available_seats == 0 %}bg-danger{% else %}bg-light text-secondary border{% endif %} small">
+                  {% if ev.available_seats == 0 %}Housefull{% else %}{{ ev.available_seats }} Seats Left{% endif %}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer bg-white border-top-0 p-3 pt-0">
+            <a href="{{ url_for('events.event_detail', event_id=ev.id) }}" class="btn btn-outline-primary w-100 fw-bold rounded-3">
+              View & Register <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="col-12 text-center py-5">
+      <i class="bi bi-inbox text-muted display-4"></i>
+      <h5 class="mt-3 text-muted">No events found matching your criteria.</h5>
+      <a href="{{ url_for('events.list_events') }}" class="btn btn-outline-primary mt-2 btn-sm">Reset Filters</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

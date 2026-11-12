@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Manage Roster: {{ event.title }} — EventPass{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <a href="{{ url_for('events.event_detail', event_id=event.id) }}" class="small text-decoration-none text-secondary">
+      <i class="bi bi-chevron-left me-1"></i> Back to Event View
+    </a>
+    <h3 class="fw-bold text-dark mt-1">{{ event.title }} — Organizer Console</h3>
+    <div class="text-muted small">
+      <i class="bi bi-geo-alt me-1"></i> {{ event.venue }} | 
+      <i class="bi bi-calendar me-1"></i> {{ event.date.strftime('%d %B %Y') }} |
+      <i class="bi bi-people me-1"></i> {{ event.confirmed_count }} / {{ event.capacity }} Seats
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <form method="POST" action="{{ url_for('certificates.bulk_issue_certificates', event_id=event.id) }}">
+      <button type="submit" class="btn btn-success fw-bold shadow-sm" onclick="return confirm('Generate and issue verified certificates for all attendees marked present?');">
+        <i class="bi bi-patch-check-fill me-1"></i> Bulk Issue Certificates
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Registered Attendees Table -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+  <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-person-lines-fill text-primary me-2"></i> Registered Participants Roster ({{ registrations|length }})</h6>
+    <span class="badge bg-light text-dark border">Auto QR Engine Ready</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light small text-uppercase">
+        <tr>
+          <th>#</th>
+          <th>Student Name</th>
+          <th>Email Address</th>
+          <th>Reg ID</th>
+          <th>Attendance</th>
+          <th>Certificate Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="small">
+        {% if registrations %}
+          {% for reg in registrations %}
+            <tr>
+              <td class="fw-bold text-muted">{{ loop.index }}</td>
+              <td class="fw-bold text-dark">{{ reg.student.username.title() }}</td>
+              <td class="text-secondary">{{ reg.student.email }}</td>
+              <td><code class="text-primary">{{ reg.reg_number[:8] }}...</code></td>
+              <td>
+                {% if reg.attendance and reg.attendance.is_present %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check2-circle me-1"></i> PRESENT</span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary px-2 py-1">ABSENT / PENDING</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if reg.certificate %}
+                  <span class="badge bg-primary px-2 py-1"><i class="bi bi-qr-code me-1"></i> {{ reg.certificate.cert_id }}</span>
+                {% elif reg.attendance and reg.attendance.is_present %}
+                  <span class="badge bg-warning-subtle text-warning-emphasis">Ready for Generation</span>
+                {% else %}
+                  <span class="text-muted">Awaiting Attendance</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="d-inline-flex gap-1">
+                  <!-- Toggle Attendance Button -->
+                  <form method="POST" action="{{ url_for('events.toggle_attendance', event_id=event.id, reg_id=reg.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-sm {% if reg.attendance and reg.attendance.is_present %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                      {% if reg.attendance and reg.attendance.is_present %}Mark Absent{% else %}Mark Present{% endif %}
+                    </button>
+                  </form>
+
+                  {% if reg.certificate %}
+                    <a href="{{ url_for('certificates.verify_certificate', cert_id=reg.certificate.cert_id) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="View Public Verification">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                    <a href="{{ url_for('certificates.download_certificate', cert_id=reg.certificate.cert_id) }}" class="btn btn-sm btn-dark" title="Download PDF">
+                      <i class="bi bi-download"></i>
+                    </a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="7" class="text-center py-4 text-muted">No students have registered for this event yet.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

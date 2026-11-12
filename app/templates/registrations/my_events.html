@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}My Passes — EventPass{% endblock %}
+
+{% block extra_css %}
+<style>
+  @media print {
+    body * { visibility: hidden; }
+    .printable-pass, .printable-pass * { visibility: visible; }
+    .printable-pass { position: absolute; left: 0; top: 0; width: 100%; }
+    .no-print { display: none !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold text-white mb-1">My Registered Event Passes</h3>
+    <p class="text-secondary small mb-0">Present your entry pass with dynamic QR code at the campus gate for instant admission.</p>
+  </div>
+  <a href="{{ url_for('events.list_events') }}" class="btn btn-primary fw-bold btn-sm">
+    <i class="bi bi-search me-1"></i> Browse More Events
+  </a>
+</div>
+
+<div class="row g-4">
+  {% if registrations %}
+    {% for reg in registrations %}
+      <div class="col-lg-6">
+        <div class="card card-dark border-0 shadow-lg rounded-4 p-4 h-100 d-flex flex-column justify-content-between">
+          <div>
+            <!-- Status & Category -->
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <span class="badge bg-primary px-2.5 py-1 fw-bold">{{ reg.event.category }}</span>
+              {% if reg.attendance and reg.attendance.is_present %}
+                <span class="badge bg-success px-2.5 py-1"><i class="bi bi-check-circle-fill me-1"></i> ADMITTED & CHECKED-IN</span>
+              {% elif reg.status == 'CONFIRMED' %}
+                <span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-50 px-2.5 py-1">
+                  <i class="bi bi-patch-check-fill me-1"></i> PASS CONFIRMED
+                </span>
+              {% else %}
+                <span class="badge bg-danger px-2 py-1">CANCELLED</span>
+              {% endif %}
+            </div>
+
+            <!-- Event Title & Info -->
+            <h4 class="fw-bold text-white mb-2">{{ reg.event.title }}</h4>
+            <div class="text-secondary small mb-3 space-y-1">
+              <div><i class="bi bi-calendar-event text-primary me-1"></i> {{ reg.event.date.strftime('%d %B %Y at %I:%M %p') }}</div>
+              <div><i class="bi bi-geo-alt-fill text-danger me-1"></i> {{ reg.event.venue }}</div>
+              <div><i class="bi bi-person text-info me-1"></i> Attendee: <strong class="text-light">{{ reg.attendee_name or reg.student.username }}</strong> ({{ reg.attendee_college or 'CCM' }})</div>
+              <div><i class="bi bi-currency-rupee text-success me-1"></i> Amount Settled: <strong class="text-success font-monospace">₹{{ "%.0f"|format(reg.amount_paid) }}</strong> via {{ reg.payment_mode }}</div>
+            </div>
+
+            <!-- PROPER TICKET PASS CONTAINER WITH QR CODE & PASS CODE (Requirement 6) -->
+            <div class="p-3 bg-black rounded-3 border border-secondary border-opacity-50 mb-3 d-flex align-items-center gap-3">
+              <div class="bg-white p-2 rounded-3 text-center">
+                <!-- Fallback QR API image using registration hash -->
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=EVENTPASS:{{ reg.reg_number }}:{{ reg.student.username }}" alt="QR Pass" style="width: 80px; height: 80px;" />
+              </div>
+              <div>
+                <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 10px;">Unique Entrance Pass Code:</small>
+                <code class="fw-bold fs-5 text-warning font-monospace">{{ reg.reg_number }}</code>
+                <small class="text-secondary d-block mt-1">Show this QR barcode to Gate Staff at Main Entrance.</small>
+              </div>
+            </div>
+
+            <!-- Certificate if available -->
+            {% if reg.certificate %}
+              <div class="p-3 rounded-3 bg-success bg-opacity-10 border border-success mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="fw-bold text-success small"><i class="bi bi-patch-check-fill me-1"></i> Certificate Issued & Verified!</span>
+                  <span class="badge bg-success small font-monospace">{{ reg.certificate.cert_id }}</span>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                  <a href="{{ url_for('certificates.download_certificate', cert_id=reg.certificate.cert_id) }}" class="btn btn-success btn-sm fw-bold">
+                    <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+                  </a>
+                  <a href="{{ url_for('certificates.verify_certificate', cert_id=reg.certificate.cert_id) }}" target="_blank" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-qr-code me-1"></i> Verify
+                  </a>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- ACTIONS: DOWNLOAD TICKET PASS (Requirement 6) -->
+          <div class="border-top border-secondary border-opacity-50 pt-3 d-flex justify-content-between align-items-center">
+            <button onclick="window.print()" class="btn btn-outline-primary btn-sm fw-bold">
+              <i class="bi bi-printer me-1"></i> Print / Download Pass
+            </button>
+            {% if reg.status == 'CONFIRMED' and not reg.attendance %}
+              <form method="POST" action="{{ url_for('registrations.cancel_registration', reg_id=reg.id) }}" onsubmit="return confirm('Cancel this admission pass?');">
+                <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none">
+                  Cancel Pass
+                </button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="col-12 text-center py-5">
+      <i class="bi bi-ticket-perforated text-secondary display-3"></i>
+      <h5 class="mt-3 text-secondary">You haven't booked any event passes yet.</h5>
+      <a href="{{ url_for('events.list_events') }}" class="btn btn-primary mt-2">Explore Available Events</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

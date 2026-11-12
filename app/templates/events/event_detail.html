@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}{{ event.title }} — EventPass{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <a href="{{ url_for('events.list_events') }}" class="btn btn-link text-decoration-none px-0 mb-3 text-secondary">
+      <i class="bi bi-chevron-left me-1"></i> Back to all events
+    </a>
+
+    <div class="card card-dark border-0 shadow-lg rounded-4 overflow-hidden mb-4">
+      <div class="p-4 p-md-5">
+        <!-- Top Badges -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <span class="badge bg-primary px-3 py-1.5 fw-bold me-2">{{ event.category }}</span>
+            {% if event.discount > 0 %}
+              <span class="badge bg-warning text-dark px-2.5 py-1.5 fw-bold">{{ event.active_offer_title }}</span>
+            {% endif %}
+          </div>
+          <span class="text-secondary small"><i class="bi bi-person-badge me-1"></i> Organizer: {{ event.organizer.username }}</span>
+        </div>
+
+        <h2 class="fw-bold text-white mb-3">{{ event.title }}</h2>
+
+        <!-- Event Key Info Grid -->
+        <div class="row g-3 py-3 border-top border-bottom my-3 bg-dark rounded-3 px-2 border-secondary border-opacity-50">
+          <div class="col-md-3">
+            <div class="text-secondary small">Date & Time</div>
+            <div class="fw-bold text-light"><i class="bi bi-calendar-check text-primary me-1"></i> {{ event.date.strftime('%d %B %Y, %I:%M %p') }}</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-secondary small">Campus Venue</div>
+            <div class="fw-bold text-light"><i class="bi bi-geo-alt-fill text-danger me-1"></i> {{ event.venue }}</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-secondary small">Seat Availability</div>
+            <div class="fw-bold text-success font-monospace"><i class="bi bi-people-fill me-1"></i> {{ event.available_seats }} of {{ event.capacity }} Left</div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-secondary small">Admission Fee</div>
+            <div class="fw-bold text-light">
+              <span class="text-success fs-5">₹{{ "%.0f"|format(event.final_price) }}</span>
+              {% if event.discount > 0 %}
+                <small class="text-muted text-decoration-line-through ms-1">₹{{ "%.0f"|format(event.base_price) }}</small>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <h5 class="fw-bold text-white mt-4 mb-2">Event Overview</h5>
+        <p class="text-secondary leading-relaxed" style="white-space: pre-line;">{{ event.description }}</p>
+
+        <!-- REAL-TIME SEAT CAPACITY TRACKER (Requirement 5) -->
+        <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-50 mt-4">
+          <div class="d-flex justify-content-between small fw-bold mb-2">
+            <span class="text-secondary"><i class="bi bi-speedometer me-1"></i> Real-Time Seat Capacity</span>
+            <span class="text-info font-monospace">{{ event.confirmed_count }} Registered / {{ event.capacity }} Seats ({{ event.capacity_percentage }}% Filled)</span>
+          </div>
+          {% set pct = event.capacity_percentage %}
+          <div class="progress bg-secondary bg-opacity-25" style="height: 10px;">
+            <div class="progress-bar {% if pct > 85 %}bg-danger{% elif pct > 65 %}bg-warning{% else %}bg-success{% endif %}" 
+                 style="width: {{ pct }}%;"></div>
+          </div>
+        </div>
+
+        <!-- REGISTRATION SECTION: Form Issued by Admin & Payment Option at End (Requirement 3 & 4) -->
+        <div class="mt-5 pt-4 border-top border-secondary border-opacity-50">
+          {% if is_registered %}
+            <div class="alert alert-success d-flex align-items-center mb-0 w-100 py-3 rounded-3">
+              <i class="bi bi-check-circle-fill me-3 fs-3"></i>
+              <div>
+                <strong class="d-block fs-6">You are registered for this event!</strong>
+                Pass Code: <span class="font-monospace fw-bold">{{ user_reg.reg_number }}</span>. You can download and print your official gate pass in 
+                <a href="{{ url_for('registrations.my_events') }}" class="alert-link">My Passes</a>.
+              </div>
+            </div>
+          {% elif event.available_seats == 0 %}
+            <div class="alert alert-danger mb-0 text-center py-3 rounded-3 fw-bold">
+              <i class="bi bi-x-circle-fill me-2"></i> Registration Closed (Maximum Seat Capacity Reached)
+            </div>
+          {% elif current_user.is_authenticated %}
+            <h4 class="fw-bold text-white mb-3"><i class="bi bi-ticket-perforated text-primary me-2"></i>Get Your Pass</h4>
+            
+            <form method="POST" action="{{ url_for('registrations.register_for_event', event_id=event.id) }}" class="p-4 bg-dark rounded-4 border border-secondary border-opacity-50 space-y-3">
+              
+              <!-- SECTION 1: ATTENDEE FORM ISSUED BY ADMIN (Requirement 4) -->
+              <h6 class="text-uppercase text-secondary fw-bold small mb-3">1. Attendee Information Form (Issued by Admin)</h6>
+              <div class="row g-3 mb-4">
+                {% for field in form_fields %}
+                  <div class="col-md-6">
+                    <label class="form-label small text-secondary fw-semibold">{{ field.label }} {% if field.required %}*{% endif %}</label>
+                    <input
+                      type="{{ field.type }}"
+                      name="{{ field.id }}"
+                      class="form-control bg-black text-light border-secondary"
+                      {% if field.required %}required{% endif %}
+                      placeholder="Enter {{ field.label }}"
+                      value="{% if field.id == 'fullName' %}{{ current_user.username }}{% elif field.id == 'email' %}{{ current_user.email }}{% endif %}"
+                    />
+                  </div>
+                {% else %}
+                  <div class="col-md-6">
+                    <label class="form-label small text-secondary fw-semibold">Full Name *</label>
+                    <input type="text" name="fullName" class="form-control bg-black text-light border-secondary" required value="{{ current_user.username }}" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small text-secondary fw-semibold">Email Address *</label>
+                    <input type="email" name="email" class="form-control bg-black text-light border-secondary" required value="{{ current_user.email }}" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small text-secondary fw-semibold">Contact Phone / WhatsApp *</label>
+                    <input type="tel" name="phone" class="form-control bg-black text-light border-secondary" required placeholder="e.g. 9876543210" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small text-secondary fw-semibold">College / University Name *</label>
+                    <input type="text" name="college" class="form-control bg-black text-light border-secondary" required value="City College of Management" />
+                  </div>
+                {% endfor %}
+              </div>
+
+              <!-- SECTION 2: PRICING & COUPON -->
+              <h6 class="text-uppercase text-secondary fw-bold small mb-3">2. Pricing & Offers</h6>
+              <div class="p-3 bg-black rounded-3 border border-secondary border-opacity-50 mb-4">
+                <div class="d-flex justify-content-between mb-2 small text-secondary">
+                  <span>Base Ticket Price:</span>
+                  <span class="font-monospace text-light">₹{{ "%.2f"|format(event.base_price) }}</span>
+                </div>
+                {% if event.discount > 0 %}
+                <div class="d-flex justify-content-between mb-2 small text-success">
+                  <span>Active Offer Discount:</span>
+                  <span class="font-monospace">- ₹{{ "%.2f"|format(event.discount) }}</span>
+                </div>
+                {% endif %}
+                <div class="d-flex justify-content-between border-top border-secondary pt-2 fw-bold text-light fs-5">
+                  <span>Final Payable Amount:</span>
+                  <span class="text-success font-monospace">₹{{ "%.2f"|format(event.final_price) }}</span>
+                </div>
+
+                <div class="input-group input-group-sm mt-3">
+                  <input type="text" name="promo_code" class="form-control bg-dark text-warning font-monospace" placeholder="Promo code" value="{{ event.promo_code or '' }}" />
+                  <button type="button" class="btn btn-secondary">Apply Offer</button>
+                </div>
+              </div>
+
+              <!-- SECTION 3: PAYMENT OPTION AT END (Requirement 3) -->
+              <h6 class="text-uppercase text-secondary fw-bold small mb-3">3. Payment Settlement Method</h6>
+              <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                  <div class="form-check p-3 bg-black rounded-3 border border-secondary border-opacity-50">
+                    <input class="form-check-input ms-0 me-2" type="radio" name="payment_mode" id="payModeUpi" value="UPI_QR" checked />
+                    <label class="form-check-label fw-bold text-light" for="payModeUpi">
+                      <i class="bi bi-qr-code text-success me-1"></i> UPI Dynamic QR Settlement
+                    </label>
+                    <small class="text-muted d-block mt-1">Scan via Google Pay, PhonePe, or Paytm</small>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check p-3 bg-black rounded-3 border border-secondary border-opacity-50">
+                    <input class="form-check-input ms-0 me-2" type="radio" name="payment_mode" id="payModeCard" value="CARD" />
+                    <label class="form-check-label fw-bold text-light" for="payModeCard">
+                      <i class="bi bi-credit-card text-primary me-1"></i> Debit / Credit Card / NetBanking
+                    </label>
+                    <small class="text-muted d-block mt-1">Instant simulated payment checkout</small>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow">
+                <i class="bi bi-patch-check-fill me-2"></i> Pay ₹{{ "%.0f"|format(event.final_price) }} & Confirm Pass
+              </button>
+            </form>
+
+          {% else %}
+            <div class="p-4 bg-dark rounded-4 text-center border border-secondary">
+              <h5 class="fw-bold text-white mb-2">Sign in to Get Your Pass</h5>
+              <p class="text-secondary small mb-3">Join other students and attendees in reserving your confirmed admission seat.</p>
+              <a href="{{ url_for('auth.login', next=request.url) }}" class="btn btn-primary btn-lg fw-bold px-5">
+                Sign In to Register
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

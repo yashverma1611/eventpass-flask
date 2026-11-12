@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Register — EventPass{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center pt-4">
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0 rounded-4 p-4 bg-white">
+      <div class="text-center mb-4">
+        <i class="bi bi-person-plus-fill text-primary display-5"></i>
+        <h3 class="fw-bold mt-2">Join EventPass</h3>
+        <p class="text-muted small">Register as a Student attendee or an Event Organizer</p>
+      </div>
+
+      <form method="POST" action="{{ url_for('auth.register') }}">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Full Name / Username</label>
+          <input type="text" name="username" class="form-control" placeholder="e.g. Sanjogita" required />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">College / University Email</label>
+          <input type="email" name="email" class="form-control" placeholder="sanjogita@ccm.edu.in" required />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Account Role</label>
+          <select name="role" class="form-select" required>
+            <option value="STUDENT" selected>Student / Participant (Instant Access)</option>
+            <option value="ORGANIZER">Event Organizer / Faculty (Subject to Admin Approval)</option>
+          </select>
+          <div class="form-text">Organizers can publish events, mark attendance, and dispatch certificates.</div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label small fw-semibold">Password</label>
+          <input type="password" name="password" class="form-control" placeholder="Minimum 6 characters" required minlength="6" />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg w-100 fs-6 fw-bold">Complete Registration</button>
+      </form>
+
+      <div class="text-center mt-4 border-top pt-3">
+        <span class="text-muted small">Already registered? </span>
+        <a href="{{ url_for('auth.login') }}" class="small fw-bold text-decoration-none">Sign in here</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

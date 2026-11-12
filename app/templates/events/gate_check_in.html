@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Gate Employee Check-In — EventPass{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <!-- Gate Header -->
+    <div class="card card-dark p-4 rounded-4 shadow-lg mb-4 border-success border-opacity-50">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-3 py-1 mb-2">
+            <i class="bi bi-door-open-fill me-1"></i> Main Gate Entrance Check-In Station
+          </span>
+          <h2 class="fw-bold mb-1">Gate Employee Admission Controller</h2>
+          <p class="text-secondary small mb-0">Verify incoming visitor passes and see <strong class="text-info">which event the visitor came for</strong>.</p>
+        </div>
+        <div class="text-end bg-dark p-3 rounded-3 border border-secondary border-opacity-50">
+          <small class="text-muted d-block">Station Operator:</small>
+          <strong class="text-light font-monospace">{{ current_user.username }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pass Code Input -->
+    <div class="card card-dark p-4 rounded-4 shadow-lg mb-4">
+      <form method="POST" action="{{ url_for('events.gate_check_in') }}">
+        <label class="form-label fw-bold text-uppercase small text-secondary">Scan QR Pass or Enter Pass Code</label>
+        <div class="input-group input-group-lg mb-2">
+          <input
+            type="text"
+            name="pass_code"
+            class="form-control bg-dark text-success font-monospace fw-bold border-secondary"
+            placeholder="e.g. EVT-PASS-91A2C4"
+            value="{{ pass_code }}"
+            autofocus
+            required
+          />
+          <button class="btn btn-success fw-bold px-4" type="submit">
+            <i class="bi bi-patch-check-fill me-1"></i> Verify Pass
+          </button>
+        </div>
+      </form>
+
+      <!-- VERIFICATION RESULT CARD (SHOWS VISITOR AND WHICH EVENT THEY CAME FOR) -->
+      {% if verification_result %}
+        {% if verification_result.status == 'ADMITTED' %}
+          <div class="alert alert-success mt-4 p-4 rounded-4 border-success shadow">
+            <div class="d-flex justify-content-between align-items-center border-bottom border-success border-opacity-50 pb-2 mb-3">
+              <h4 class="fw-bold mb-0 text-success"><i class="bi bi-check-circle-fill me-2"></i>ADMISSION GRANTED • VALID PASS</h4>
+              <span class="badge bg-dark font-monospace text-success">{{ verification_result.checked_in_at }}</span>
+            </div>
+
+            <!-- WHICH EVENT THE VISITOR CAME FOR (Requirement 7) -->
+            <div class="bg-dark p-3 rounded-3 border border-success border-opacity-50 mb-3">
+              <small class="text-success text-uppercase fw-bold d-block">Target Event (Visitor Came For):</small>
+              <h3 class="fw-bold text-white mb-1">{{ verification_result.event_title }}</h3>
+              <p class="text-secondary small mb-0"><i class="bi bi-geo-alt-fill text-warning me-1"></i>{{ verification_result.event_venue }} • {{ verification_result.event_date }}</p>
+            </div>
+
+            <div class="row g-2 small text-light">
+              <div class="col-md-6">Attendee Full Name: <strong class="text-white">{{ verification_result.attendee_name }}</strong></div>
+              <div class="col-md-6">College / Organization: <strong class="text-white">{{ verification_result.attendee_college }}</strong></div>
+              <div class="col-md-6">Student Roll No: <span class="font-monospace text-white">{{ verification_result.attendee_roll }}</span></div>
+              <div class="col-md-6">Verified By: <span class="text-white">{{ verification_result.gate_officer }}</span></div>
+            </div>
+          </div>
+        {% elif verification_result.status == 'ALREADY_CHECKED_IN' %}
+          <div class="alert alert-warning mt-4 p-4 rounded-4 border-warning shadow">
+            <div class="d-flex justify-content-between align-items-center border-bottom border-warning border-opacity-50 pb-2 mb-3">
+              <h4 class="fw-bold mb-0 text-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i>ALREADY CHECKED-IN (POTENTIAL DUPLICATE)</h4>
+              <span class="badge bg-dark font-monospace text-warning">{{ verification_result.checked_in_at }}</span>
+            </div>
+
+            <!-- Target Event -->
+            <div class="bg-dark p-3 rounded-3 border border-warning border-opacity-50 mb-3">
+              <small class="text-warning text-uppercase fw-bold d-block">Target Event (Visitor Came For):</small>
+              <h3 class="fw-bold text-white mb-1">{{ verification_result.event_title }}</h3>
+              <p class="text-secondary small mb-0">{{ verification_result.event_venue }} • {{ verification_result.event_date }}</p>
+            </div>
+
+            <div class="row g-2 small text-light">
+              <div class="col-md-6">Attendee: <strong>{{ verification_result.attendee_name }}</strong></div>
+              <div class="col-md-6">Admitted At: <strong>{{ verification_result.checked_in_at }}</strong></div>
+              <div class="col-12 mt-2 text-danger fw-bold">Visitor was already verified through the gate today. Do not issue a second entry without authorization.</div>
+            </div>
+          </div>
+        {% else %}
+          <div class="alert alert-danger mt-4 p-4 rounded-4 border-danger shadow">
+            <h4 class="fw-bold text-danger mb-2"><i class="bi bi-x-circle-fill me-2"></i>ADMISSION DENIED: INVALID PASS</h4>
+            <p class="mb-0">{{ verification_result.message }}</p>
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <!-- Recent Gate Admissions Table -->
+    <div class="card card-dark p-4 rounded-4 shadow-lg">
+      <h5 class="fw-bold mb-3 text-secondary text-uppercase small">Recent Admitted Visitors</h5>
+      <div class="table-responsive">
+        <table class="table table-dark table-hover table-sm align-middle small mb-0">
+          <thead>
+            <tr class="text-secondary border-secondary">
+              <th>Time</th>
+              <th>Pass Code</th>
+              <th>Visitor Name</th>
+              <th>Target Event</th>
+              <th>Gate Officer</th>
+              <th class="text-end">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in recent_admissions %}
+            <tr>
+              <td class="text-secondary">{{ item.marked_at.strftime('%I:%M %p') }}</td>
+              <td class="font-monospace text-success fw-bold">{{ item.registration.reg_number }}</td>
+              <td class="fw-bold">{{ item.registration.attendee_name or item.registration.student.username }}</td>
+              <td class="text-info fw-bold">{{ item.registration.event.title }}</td>
+              <td class="text-secondary">{{ item.gate_officer_name or 'Gate 1' }}</td>
+              <td class="text-end"><span class="badge bg-success bg-opacity-25 text-success">ADMITTED</span></td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-3">No visitors admitted through this station yet today.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
